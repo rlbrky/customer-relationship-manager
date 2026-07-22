@@ -1,0 +1,40 @@
+# ─── Claude Code / local-only (never committed) ───
+CLAUDE.md
+IMPLEMENTATION_PLAN.md
+.claude/
+
+# ─── Environment / secrets ───
+.env
+.env.*
+!.env.example
+
+# ─── IDEs ───
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.code-workspace
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Backend: Java / Maven (backend/crm also ships its own Initializr .gitignore) ───
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/wrapper/maven-wrapper.jar
+*.log
+
+# ─── Frontend: Node / Vite (added in M1) ───
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
