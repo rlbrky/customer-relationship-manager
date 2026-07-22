@@ -11,21 +11,8 @@
 	<groupId>com.berkay</groupId>
 	<artifactId>crm</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<name>crm</name>
+	<description>Enterprise-grade B2B Customer Relationship Manager</description>
 	<properties>
 		<java.version>26</java.version>
 	</properties>

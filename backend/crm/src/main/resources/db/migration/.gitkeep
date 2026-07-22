@@ -1,0 +1,3 @@
+# Flyway migrations live here: V<n>__<description>.sql
+# Intentionally empty in M1 — Flyway is wired and creates its schema-history table,
+# but the first real migration arrives in M2 with the domain entities.

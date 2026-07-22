@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: 'mysql:8.4'
+    environment:
+      MYSQL_DATABASE: crm
+      MYSQL_USER: crm_user
+      MYSQL_PASSWORD: ${CRM_DB_PASSWORD:?set CRM_DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${CRM_DB_ROOT_PASSWORD:?set CRM_DB_ROOT_PASSWORD in .env}
+    # host 3307 -> container 3306: local MySQL80 service already owns 3306
+    ports:
+      - '3307:3306'
+    volumes:
+      - crm_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  crm_mysql_data:
