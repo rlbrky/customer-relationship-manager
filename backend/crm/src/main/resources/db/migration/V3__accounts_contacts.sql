@@ -10,7 +10,7 @@ CREATE TABLE account (
                          created_date       DATETIME(6)  NOT NULL,
                          last_modified_by   VARCHAR(255),
                          last_modified_date DATETIME(6)  NOT NULL,
-                         deleted_at         DATETIME(6)  NOT NULL,
+                         deleted_at         DATETIME(6)  NULL,
                          PRIMARY KEY (id),
                          CONSTRAINT fk_account_owner FOREIGN KEY (owner_id) REFERENCES crm_user (id)
 );
