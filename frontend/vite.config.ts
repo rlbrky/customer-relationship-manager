@@ -8,8 +8,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/actuator': 'http://localhost:8080',
+      // 127.0.0.1, not localhost: on Windows/Node 18+ 'localhost' can resolve to
+      // IPv6 (::1) first while Tomcat listens on IPv4, adding a per-request delay.
+      '/api': 'http://127.0.0.1:8080',
+      '/actuator': 'http://127.0.0.1:8080',
     },
   },
 })
