@@ -41,6 +41,18 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorEnvelope> handleConflict(ConflictException ex, HttpServletRequest request) {
+
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorEnvelope> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
+
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorEnvelope> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception at {}", request.getRequestURI(), ex);   // full detail server-side

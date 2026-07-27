@@ -45,5 +45,17 @@ public class DataSeeder implements ApplicationRunner {
                 .add(roleRepository.findByName("ROLE_ADMIN")
                     .orElseThrow());
         userRepository.save(user);
+
+        if (!userRepository.existsByUsername("rep")) {
+            CrmUser rep = new CrmUser();
+            rep.setUsername("rep");
+            rep.setEmail("rep@crm.local");
+            rep.setFirstName("Sales");
+            rep.setLastName("Rep");
+            rep.setEnabled(true);
+            rep.setPasswordHash(passwordEncoder.encode("rep"));
+            rep.getRoles().add(roleRepository.findByName("ROLE_SALES_REP").orElseThrow());
+            userRepository.save(rep);
+        }
     }
 }
