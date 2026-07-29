@@ -3,11 +3,13 @@ import type { User } from './auth'
 /** The subset of Spring Data's Page JSON that we actually use. */
 export interface Page<T> {
   content: T[]
-  totalElements: number
-  totalPages: number
-  /** zero-based page index */
-  number: number
-  size: number
+  page: {
+    size: number
+    /** zero-based page index */
+    number: number
+    totalElements: number
+    totalPages: number
+  }
 }
 
 /** Mirrors `com.berkay.crm.dto.UserCreateRequest`. */
