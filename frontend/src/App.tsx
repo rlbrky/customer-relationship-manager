@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { AccountsPage } from './pages/AccountsPage'
 import { UsersPage } from './pages/UsersPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AdminRoute } from './auth/AdminRoute'
@@ -16,6 +17,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/accounts" element={<AccountsPage />} />
 
           {/* admin-only area nests a second, role-based gate */}
           <Route element={<AdminRoute />}>
