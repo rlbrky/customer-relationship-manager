@@ -1,11 +1,13 @@
 package com.berkay.crm.repository;
 
 import com.berkay.crm.model.Contact;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.List;
 
 public interface ContactRepository extends JpaRepository<Contact, Long> {
 
-    public List<Contact> findByAccountId(Long accountId);
+    @EntityGraph(attributePaths = "account")
+    Page<Contact> findByAccountId(Long accountId, Pageable pageable);
 }

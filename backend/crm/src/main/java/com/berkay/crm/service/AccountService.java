@@ -3,7 +3,6 @@ package com.berkay.crm.service;
 import com.berkay.crm.dto.AccountCreateRequest;
 import com.berkay.crm.dto.AccountResponse;
 import com.berkay.crm.dto.AccountUpdateRequest;
-import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
@@ -15,8 +14,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.security.Principal;
 
 @Service
 public class AccountService {
@@ -83,7 +80,7 @@ public class AccountService {
     }
 
     // Load or 404, THEN Authorize or 403 - never the opposite!
-    private Account loadAccessible(Long id, CrmUser currentUser) {
+    public Account loadAccessible(Long id, CrmUser currentUser) {
 
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + id));

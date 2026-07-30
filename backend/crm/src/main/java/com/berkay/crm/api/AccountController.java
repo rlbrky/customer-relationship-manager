@@ -1,10 +1,9 @@
 package com.berkay.crm.api;
 
-import com.berkay.crm.dto.AccountCreateRequest;
-import com.berkay.crm.dto.AccountResponse;
-import com.berkay.crm.dto.AccountUpdateRequest;
+import com.berkay.crm.dto.*;
 import com.berkay.crm.security.CrmUserDetails;
 import com.berkay.crm.service.AccountService;
+import com.berkay.crm.service.ContactService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,12 +17,14 @@ import java.net.URI;
 
 @RestController
 @RequestMapping("/api/accounts")
-public class AccountsController {
+public class AccountController {
 
     private final AccountService accountService;
+    private final ContactService contactService;
 
-    public AccountsController(AccountService accountService) {
+    public AccountController(AccountService accountService, ContactService contactService) {
         this.accountService = accountService;
+        this.contactService = contactService;
     }
 
     @GetMapping
@@ -75,5 +76,29 @@ public class AccountsController {
 
         accountService.delete(id, principal.getCrmUser());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{accountId}/contacts")
+    public Page<ContactResponse> getContacts(
+            @PathVariable Long accountId,
+            @PageableDefault(size = 20, sort = "lastName") Pageable pageable,
+            @AuthenticationPrincipal CrmUserDetails principal
+    ) {
+
+        return contactService.findByAccount(accountId, pageable, principal.getCrmUser());
+    }
+
+    @PostMapping("/{accountId}/contacts")
+    public ResponseEntity<ContactResponse> createContact(
+            @Valid @RequestBody ContactCreateRequest request,
+            @PathVariable Long accountId,
+            @AuthenticationPrincipal CrmUserDetails principal
+    ) {
+
+        ContactResponse createdContact = contactService.create(accountId, request, principal.getCrmUser());
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/contacts/{id}").buildAndExpand(createdContact.id()).toUri();
+
+        return ResponseEntity.created(location).body(createdContact); // 201 + location
     }
 }
