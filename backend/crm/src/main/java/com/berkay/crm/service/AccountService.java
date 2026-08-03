@@ -8,6 +8,7 @@ import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.model.Role;
 import com.berkay.crm.repository.AccountRepository;
+import com.berkay.crm.repository.ContactRepository;
 import com.berkay.crm.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,16 +16,23 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Service
 public class AccountService {
 
     private final AccountRepository accountRepository;
 
+    private final ContactRepository contactRepository;
+
     private final UserRepository userRepository;
 
-    public AccountService(AccountRepository accountRepository, UserRepository userRepository) {
+    public AccountService(AccountRepository accountRepository, UserRepository userRepository, ContactRepository contactRepository) {
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
+        this.contactRepository = contactRepository;
     }
 
     @Transactional
@@ -37,7 +45,7 @@ public class AccountService {
         account.setPhone(request.phone());
         account.setOwner(resolveOwner(request.ownerId(), currentUser));
 
-        return AccountResponse.from(accountRepository.save(account));
+        return AccountResponse.from(accountRepository.save(account), 0);
     }
 
     @Transactional
@@ -51,13 +59,14 @@ public class AccountService {
         account.setPhone(request.phone());
         account.setOwner(resolveOwner(request.ownerId(), currentUser));
 
-        return AccountResponse.from(account); // managed
+        return AccountResponse.from(account, contactRepository.countByAccountId(id)); // managed
     }
 
     @Transactional
     public void delete(Long id, CrmUser currentUser) {
 
         Account account = loadAccessible(id, currentUser);
+        account.getContacts().forEach(contactRepository::delete); // children first
         accountRepository.delete(account); // @SQLDelete turns this into a soft delete
     }
 
@@ -69,14 +78,28 @@ public class AccountService {
                 ? accountRepository.findAll(pageable)
                 : accountRepository.findAllByOwnerId(currentUser.getId(), pageable);
 
-        return accounts.map(AccountResponse::from);
+        List<Long> ids = accounts.getContent().stream().map(Account::getId).toList();
+
+        // `in :ids` with an empty collection is invalid SQL on some databases
+        if(ids.isEmpty()) {
+            return accounts.map(account -> AccountResponse.from(account, 0));
+        }
+
+        // one extra query for the entire page
+        Map<Long, Long> counts = contactRepository.countByAccountIdIn(ids).stream()
+                .collect(Collectors.toMap(
+                        ContactRepository.AccountContactCount::getAccountId,
+                        ContactRepository.AccountContactCount::getTotal
+                ));
+
+        return accounts.map(account -> AccountResponse.from(account, counts.getOrDefault(account.getId(), 0L)));
     }
 
     @Transactional(readOnly = true)
     public AccountResponse findById(Long id, CrmUser currentUser) {
 
         Account account = loadAccessible(id, currentUser);
-        return AccountResponse.from(account);
+        return AccountResponse.from(account, contactRepository.countByAccountId(id));
     }
 
     // Load or 404, THEN Authorize or 403 - never the opposite!

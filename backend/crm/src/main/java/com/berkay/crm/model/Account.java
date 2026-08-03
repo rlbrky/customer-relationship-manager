@@ -5,6 +5,8 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "account")
@@ -30,6 +32,17 @@ public class Account extends BaseEntity {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
+    private List<Contact> contacts = new ArrayList<>();
+
+    public List<Contact> getContacts() {
+        return contacts;
+    }
+
+    public void setContacts(List<Contact> contacts) {
+        this.contacts = contacts;
+    }
 
     public String getName() {
         return name;
