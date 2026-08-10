@@ -7,6 +7,8 @@ export interface Account {
   phone: string | null
   ownerId: number
   ownerName: string
+  /** Number of live (non-soft-deleted) contacts — computed by an aggregate query. */
+  contactCount: number
 }
 
 /** Mirrors `AccountCreateRequest` — ownerId is optional (null ⇒ "me"). */

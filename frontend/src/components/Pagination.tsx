@@ -4,9 +4,17 @@ interface PaginationProps {
   totalPages: number
   totalElements: number
   onChange: (page: number) => void
+  /** singular noun for the status line, e.g. "account" → "5 accounts" */
+  label?: string
 }
 
-export function Pagination({ number, totalPages, totalElements, onChange }: PaginationProps) {
+export function Pagination({
+  number,
+  totalPages,
+  totalElements,
+  onChange,
+  label = 'item',
+}: PaginationProps) {
   if (totalElements === 0) return null
 
   const first = number === 0
@@ -16,7 +24,7 @@ export function Pagination({ number, totalPages, totalElements, onChange }: Pagi
     <nav className="pager" aria-label="Pagination">
       <span className="pager__status">
         Page {number + 1} of {Math.max(totalPages, 1)} · {totalElements}{' '}
-        {totalElements === 1 ? 'account' : 'accounts'}
+        {totalElements === 1 ? label : `${label}s`}
       </span>
       <div className="pager__buttons">
         <button

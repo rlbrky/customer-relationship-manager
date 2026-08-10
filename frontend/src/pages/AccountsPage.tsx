@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { AccountForm } from '../components/AccountForm'
 import { Pagination } from '../components/Pagination'
@@ -150,13 +151,16 @@ export function AccountsPage() {
                   <th>Website</th>
                   <th>Phone</th>
                   <th>Owner</th>
+                  <th>Contacts</th>
                   <th className="table__actions-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {accounts.map((account) => (
                   <tr key={account.id}>
-                    <td>{account.name}</td>
+                    <td>
+                      <Link className="link" to={`/accounts/${account.id}`}>{account.name}</Link>
+                    </td>
                     <td className="table__muted">{account.industry ?? '—'}</td>
                     <td className="table__muted">
                       {account.website ? (
@@ -167,6 +171,7 @@ export function AccountsPage() {
                     </td>
                     <td className="table__muted">{account.phone ?? '—'}</td>
                     <td><span className="tag">{account.ownerName}</span></td>
+                    <td className="table__muted">{account.contactCount}</td>
                     <td className="table__actions">
                       {/* No permission check needed: the list only ever contains
                           accounts this user may edit — reps see only their own,
@@ -190,7 +195,7 @@ export function AccountsPage() {
                 ))}
                 {accounts.length === 0 && (
                   <tr>
-                    <td className="table__empty" colSpan={6}>No accounts yet.</td>
+                    <td className="table__empty" colSpan={7}>No accounts yet.</td>
                   </tr>
                 )}
               </tbody>
@@ -202,6 +207,7 @@ export function AccountsPage() {
             totalPages={totalPages}
             totalElements={totalElements}
             onChange={(page) => void load(page)}
+            label="account"
           />
         </>
       )}

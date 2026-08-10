@@ -1,6 +1,6 @@
 import type { Page } from '../types/user'
 import type { Account, AccountCreateRequest, AccountUpdateRequest } from '../types/account'
-import {apiFetch} from "./client.ts";
+import { apiFetch } from "./client.ts";
 
 export async function fetchAccounts(
   _page = 0,
