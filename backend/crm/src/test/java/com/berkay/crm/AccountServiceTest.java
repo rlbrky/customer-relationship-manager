@@ -5,9 +5,11 @@ import com.berkay.crm.dto.AccountResponse;
 import com.berkay.crm.dto.AccountUpdateRequest;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
+import com.berkay.crm.model.Contact;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.model.Role;
 import com.berkay.crm.repository.AccountRepository;
+import com.berkay.crm.repository.ContactRepository;
 import com.berkay.crm.repository.UserRepository;
 import com.berkay.crm.service.AccountService;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,9 @@ public class AccountServiceTest {
 
     @Mock
     AccountRepository accountRepository;
+
+    @Mock
+    ContactRepository contactRepository;
 
     @Mock
     UserRepository userRepository;
@@ -186,5 +191,25 @@ public class AccountServiceTest {
 
         // then
         verify(accountRepository).delete(account);  // @SQLDelete makes this a soft delete
+    }
+
+    @Test
+    void delete_alsoSoftDeletesContacts() {
+
+        // given
+        CrmUser user = userWith(1L, "ROLE_SALES_REP");
+        Account account = accountOwnedBy(10L, user);
+        Contact first = new Contact();
+        Contact second = new Contact();
+        account.getContacts().addAll(List.of(first, second));
+        given(accountRepository.findById(10L)).willReturn(Optional.of(account));
+
+        // when
+        accountService.delete(10L, user);
+
+        // then
+        verify(contactRepository).delete(first);
+        verify(contactRepository).delete(second);
+        verify(accountRepository).delete(account);
     }
 }

@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
@@ -103,5 +105,26 @@ public class ContactRepositoryTest {
         // when / then
         assertThat(contactRepository.findByAccountId(account.getId(), Pageable.unpaged()).getContent())
                 .hasSize(1);
+    }
+
+    @Test
+    public void countByAccountIdIn_excludesSoftDeletedContacts() {
+
+        // given - three contacts 1 soft deleted
+        CrmUser user = newUser("test", "test@example.com");
+        Account account = accountRepository.save(newAccount(user));
+        contactRepository.save(newContact(account));
+        contactRepository.save(newContact(account));
+        Contact removed = contactRepository.save(newContact(account));
+
+        contactRepository.delete(removed);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when / then
+        assertThat(contactRepository.countByAccountIdIn(List.of(account.getId())))
+                .singleElement()
+                .extracting(ContactRepository.AccountContactCount::getTotal)
+                .isEqualTo(2L);
     }
 }
