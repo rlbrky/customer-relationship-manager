@@ -30,10 +30,19 @@ public class AccountController {
     @GetMapping
     public Page<AccountResponse> getAccounts(
             @PageableDefault(size = 20, sort = "name") Pageable pageable,
-            @AuthenticationPrincipal CrmUserDetails principal
+            @AuthenticationPrincipal CrmUserDetails principal,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String industry,
+            @RequestParam(required = false) Long ownerId
             ) {
 
-        return accountService.findAll(pageable, principal.getCrmUser());
+        return accountService.findAll(
+                pageable,
+                principal.getCrmUser(),
+                name,
+                industry,
+                ownerId
+                );
     }
 
     @GetMapping("/{id}")

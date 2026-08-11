@@ -9,7 +9,7 @@ export async function fetchContacts(
   sort = 'lastName,asc',
 ): Promise<Page<Contact>> {
 
-  return apiFetch<Page<Contact>>(`/api/accounts/${accountId}/contacts?page=${page}&_size=${size}&_sort=${sort}`);
+  return apiFetch<Page<Contact>>(`/api/accounts/${accountId}/contacts?page=${page}&size=${size}&sort=${sort}`);
 }
 
 export async function createContact(

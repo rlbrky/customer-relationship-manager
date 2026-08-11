@@ -6,12 +6,14 @@ import com.berkay.crm.dto.AccountUpdateRequest;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
-import com.berkay.crm.model.Role;
 import com.berkay.crm.repository.AccountRepository;
 import com.berkay.crm.repository.ContactRepository;
 import com.berkay.crm.repository.UserRepository;
+import com.berkay.crm.security.Roles;
+import com.berkay.crm.repository.specification.AccountSpecifications;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,12 +73,25 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AccountResponse> findAll(Pageable pageable, CrmUser currentUser) {
+    public Page<AccountResponse> findAll(Pageable pageable, CrmUser currentUser,
+                                         String name, String industry, Long ownerId) {
 
-        // This filtering can't be made with annotations
-        Page<Account> accounts = isPrivileged(currentUser)
-                ? accountRepository.findAll(pageable)
-                : accountRepository.findAllByOwnerId(currentUser.getId(), pageable);
+        // visibility is the SEED of the chain, it can't be skipped
+        Specification<Account> spec = AccountSpecifications.visibleTo(currentUser);
+
+        if(name != null && !name.isBlank()) {
+            spec = spec.and(AccountSpecifications.nameContains(name));
+        }
+
+        if (industry != null && !industry.isBlank()) {
+            spec = spec.and(AccountSpecifications.industryIs(industry));
+        }
+
+        if (ownerId != null) {
+            spec = spec.and(AccountSpecifications.ownedBy(ownerId));
+        }
+
+        Page<Account> accounts = accountRepository.findAll(spec, pageable);
 
         List<Long> ids = accounts.getContent().stream().map(Account::getId).toList();
 
@@ -110,7 +125,7 @@ public class AccountService {
 
         boolean isOwner = account.getOwner().getId().equals(currentUser.getId());
 
-        if (!isOwner && !isPrivileged(currentUser)) {
+        if (!isOwner && !Roles.isPrivileged(currentUser)) {
             throw new AccessDeniedException("You do not have access to this account");
         }
 
@@ -122,20 +137,12 @@ public class AccountService {
 
         Long targetId = (ownerId == null) ? currentUser.getId() : ownerId;
 
-        if (!targetId.equals(currentUser.getId()) && !isPrivileged(currentUser)) {
+        if (!targetId.equals(currentUser.getId()) && !Roles.isPrivileged(currentUser)) {
             throw new AccessDeniedException("Only managers and admins can assign a different owner");
         }
 
         // always re-load: the principal's CrmUser is DETACHED (loaded at login)
         return userRepository.findById(targetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found: " + targetId));
-    }
-
-    // Accept only ADMIN and MANAGER roles
-    private boolean isPrivileged(CrmUser user) {
-
-        return user.getRoles().stream()
-                .map(Role::getName)
-                .anyMatch(n -> n.equals("ROLE_ADMIN") || n.equals("ROLE_MANAGER"));
     }
 }

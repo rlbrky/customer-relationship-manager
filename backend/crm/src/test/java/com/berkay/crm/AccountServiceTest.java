@@ -106,36 +106,6 @@ public class AccountServiceTest {
     }
 
     @Test
-    void findAll_salesRepSeesOnlyOwnAccounts() {
-
-        // given
-        CrmUser rep = userWith(1l, "ROLE_SALES_REP");
-        given(accountRepository.findAllByOwnerId(eq(1L), any(Pageable.class)))
-                .willReturn(new PageImpl<>(List.of(accountOwnedBy(99l, rep))));
-
-        // when
-        accountService.findAll(Pageable.unpaged(), rep);
-
-        // then
-        verify(accountRepository, never()).findAll(any(Pageable.class)); // never the unfiltered query.
-    }
-
-    @Test
-    void findAll_managerSeesAllAccounts() {
-
-        // given
-        CrmUser manager = userWith(2L, "ROLE_MANAGER");
-        given(accountRepository.findAll(any(Pageable.class)))
-                .willReturn(new PageImpl<>(List.of(accountOwnedBy(99L, userWith(1L, "ROLE_SALES_REP")))));
-
-        // when
-        accountService.findAll(Pageable.unpaged(), manager);
-
-        // then
-        verify(accountRepository, never()).findAllByOwnerId(any(), any());
-    }
-
-    @Test
     void update_rejectsSalesRepEditingSomeoneElsesAccount() {
 
         // given

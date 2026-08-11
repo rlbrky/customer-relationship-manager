@@ -2,11 +2,12 @@ package com.berkay.crm;
 
 import com.berkay.crm.config.JpaAuditingConfig;
 import com.berkay.crm.model.Account;
-import com.berkay.crm.model.Contact;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.repository.AccountRepository;
-import com.berkay.crm.repository.ContactRepository;
+import com.berkay.crm.repository.RoleRepository;
 import com.berkay.crm.repository.UserRepository;
+import com.berkay.crm.repository.specification.AccountSpecifications;
+import com.berkay.crm.security.Roles;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -32,9 +33,12 @@ public class AccountRepositoryTest {
     private UserRepository userRepository;
 
     @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
     private TestEntityManager entityManager;
 
-    private CrmUser newUser(String username, String email) {
+    private CrmUser newUser(String username, String email, String roleName) {
         CrmUser user = new CrmUser();
         user.setUsername(username);
         user.setEmail(email);
@@ -42,14 +46,26 @@ public class AccountRepositoryTest {
         user.setFirstName("Test");
         user.setLastName("User");
         user.setEnabled(true);
-        userRepository.save(user);
+        user.getRoles().add(roleRepository.findByName(roleName).orElseThrow());
 
-        return user;
+        return userRepository.save(user);
+    }
+
+    private CrmUser newUser(String username, String email) {
+        return newUser(username, email, Roles.SALES_REP);
     }
 
     private Account newAccount(CrmUser owner) {
         Account account = new Account();
         account.setName("Test Corp");
+        account.setOwner(owner);
+        return account;
+    }
+
+    private Account newAccount(CrmUser owner, String name, String industry) {
+        Account account = new Account();
+        account.setName(name);
+        account.setIndustry(industry);
         account.setOwner(owner);
         return account;
     }
@@ -115,5 +131,115 @@ public class AccountRepositoryTest {
 
         // then
         assertThat(accountRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    public void visibleTo_salesRepSeesOnlyOwnAccounts() {
+
+        // given
+        CrmUser rep = newUser("rep1", "rep@example.com");
+        CrmUser other = newUser("other", "other@example.com");
+        accountRepository.save(newAccount(rep, "Mine", "Technology"));
+        accountRepository.save(newAccount(other, "Theirs", "Finance"));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        var found = accountRepository.findAll(
+                AccountSpecifications.visibleTo(rep), Pageable.unpaged());
+
+        // then
+        assertThat(found.getContent())
+                .extracting(Account::getName)
+                .containsExactly("Mine");
+    }
+
+    @Test
+    public void visibleTo_managerSeesAll() {
+
+        // given
+        CrmUser manager = newUser("rep1", "rep@example.com", "ROLE_MANAGER");
+        CrmUser other = newUser("other", "other@example.com");
+        accountRepository.save(newAccount(manager, "Mine", "Technology"));
+        accountRepository.save(newAccount(other, "Theirs", "Finance"));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        var found = accountRepository.findAll(
+                AccountSpecifications.visibleTo(manager), Pageable.unpaged());
+
+        // then
+        assertThat(found.getContent())
+                .extracting(Account::getName)
+                .containsExactlyInAnyOrder("Mine", "Theirs");
+    }
+
+    @Test
+    public void nameContains_isCaseInsensitive() {
+
+        // given
+        CrmUser rep = newUser("rep", "rep@example.com");
+        accountRepository.save(newAccount(rep, "Acme Corp", "Technology"));
+        accountRepository.save(newAccount(rep, "Globex", "Technology"));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Page<Account> found = accountRepository.findAll(
+                AccountSpecifications.nameContains("ACME"), Pageable.unpaged());
+
+        // then
+        assertThat(found.getContent())
+                .extracting(Account::getName)
+                .containsExactly("Acme Corp");
+    }
+
+    @Test
+    public void industryIs_matchesExactlyIgnoringCase() {
+
+        // given
+        CrmUser rep = newUser("rep", "rep@example.com");
+        accountRepository.save(newAccount(rep, "Acme Corp", "Technology"));
+        accountRepository.save(newAccount(rep, "Globex", "Finance"));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Page<Account> found = accountRepository.findAll(
+                AccountSpecifications.industryIs("technology"), Pageable.unpaged());
+
+        // then
+        assertThat(found.getContent())
+                .extracting(Account::getName)
+                .containsExactly("Acme Corp");
+    }
+
+    @Test
+    public void composedSpecs_areAnded() {
+
+        // given
+        CrmUser rep = newUser("rep", "rep@example.com");
+        accountRepository.save(newAccount(rep, "Acme", "Technology"));
+        accountRepository.save(newAccount(rep, "Acme Holdings", "Finance"));
+        accountRepository.save(newAccount(rep, "Globex", "Technology"));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Page<Account> found = accountRepository.findAll(
+                AccountSpecifications.nameContains("acme")
+                        .and(AccountSpecifications.industryIs("Technology")),
+                Pageable.unpaged());
+
+        // then — AND, not OR: only the row satisfying both survives
+        assertThat(found.getContent())
+                .extracting(Account::getName)
+                .containsExactly("Acme");
     }
 }
