@@ -8,9 +8,11 @@ import com.berkay.crm.model.Account;
 import com.berkay.crm.model.Contact;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.repository.ContactRepository;
+import com.berkay.crm.repository.specification.ContactSpecifications;
 import com.berkay.crm.security.CrmUserDetails;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,14 +29,18 @@ public class ContactService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ContactResponse> findByAccount(Long accountId, Pageable pageable, CrmUser user) {
+    public Page<ContactResponse> findByAccount(Long accountId, Pageable pageable, CrmUser user, String q) {
 
         // authorization guard: 403/404 propagate
         accountService.loadAccessible(accountId, user);
 
-        Page<Contact> contacts = contactRepository.findByAccountId(accountId, pageable);
+        Specification<Contact> spec = ContactSpecifications.inAccount(accountId);
 
-        return contacts.map(ContactResponse::from);
+        if(q != null && !q.isBlank()) {
+            spec = spec.and(ContactSpecifications.matches(q));
+        }
+
+        return contactRepository.findAll(spec, pageable).map(ContactResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +86,18 @@ public class ContactService {
 
         Contact contact = loadAccessible(id, user);
         contactRepository.delete(contact);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ContactResponse> search(String q, Pageable pageable, CrmUser user) {
+
+        Specification<Contact> spec = ContactSpecifications.visibleTo(user);
+
+        if(q != null && !q.isBlank()) {
+            spec = spec.and(ContactSpecifications.matches(q));
+        }
+
+        return contactRepository.findAll(spec, pageable).map(ContactResponse::from);
     }
 
     private Contact loadAccessible(Long id, CrmUser currentUser) {

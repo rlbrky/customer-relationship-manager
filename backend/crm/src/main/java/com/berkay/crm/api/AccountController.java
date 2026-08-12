@@ -91,10 +91,11 @@ public class AccountController {
     public Page<ContactResponse> getContacts(
             @PathVariable Long accountId,
             @PageableDefault(size = 20, sort = "lastName") Pageable pageable,
-            @AuthenticationPrincipal CrmUserDetails principal
+            @AuthenticationPrincipal CrmUserDetails principal,
+            @RequestParam(required = false) String q
     ) {
 
-        return contactService.findByAccount(accountId, pageable, principal.getCrmUser());
+        return contactService.findByAccount(accountId, pageable, principal.getCrmUser(), q);
     }
 
     @PostMapping("/{accountId}/contacts")
