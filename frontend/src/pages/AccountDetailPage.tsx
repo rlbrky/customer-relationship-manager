@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useDebounce } from '../hooks/useDebounce'
 import { ContactForm } from '../components/ContactForm'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
@@ -29,6 +30,11 @@ export function AccountDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  // Search within this account only — the backend ANDs it with inAccount(id),
+  // so a match on another account's contact can never appear here.
+  const [qInput, setQInput] = useState('')
+  const debouncedQ = useDebounce(qInput)
+
   const load = useCallback(
     async (page: number) => {
       setLoading(true)
@@ -37,7 +43,7 @@ export function AccountDetailPage() {
         // both calls are authorized server-side; a 403/404 surfaces here as ApiError
         const [accountResult, contactsResult] = await Promise.all([
           fetchAccount(accountId),
-          contactsApi.fetchContacts(accountId, page, PAGE_SIZE),
+          contactsApi.fetchContacts(accountId, page, PAGE_SIZE, 'lastName,asc', debouncedQ || undefined),
         ])
         setAccount(accountResult)
         setContacts(contactsResult.content)
@@ -56,9 +62,10 @@ export function AccountDetailPage() {
         setLoading(false)
       }
     },
-    [accountId],
+    [accountId, debouncedQ],
   )
 
+  // `load` changes when the search term settles, so this also restarts at page 1
   useEffect(() => {
     void load(0)
   }, [load])
@@ -140,15 +147,25 @@ export function AccountDetailPage() {
 
       <div className="content__head content__head--sub">
         <h2 className="section__title">Contacts</h2>
-        {editor.kind === 'none' && (
-          <button
-            className="btn btn--primary"
-            type="button"
-            onClick={() => { setFormError(null); setEditor({ kind: 'create' }) }}
-          >
-            Add contact
-          </button>
-        )}
+        <div className="head__tools">
+          <input
+            className="field__input filters__item"
+            type="search"
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
+            placeholder="Search contacts…"
+            aria-label="Search contacts on this account"
+          />
+          {editor.kind === 'none' && (
+            <button
+              className="btn btn--primary"
+              type="button"
+              onClick={() => { setFormError(null); setEditor({ kind: 'create' }) }}
+            >
+              Add contact
+            </button>
+          )}
+        </div>
       </div>
 
       {editor.kind === 'create' && (

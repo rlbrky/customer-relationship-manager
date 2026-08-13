@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { useDebounce } from '../hooks/useDebounce'
 import { AccountForm } from '../components/AccountForm'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
@@ -11,14 +12,33 @@ import type { User } from '../types/auth'
 
 type Editor = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; account: Account }
 
-const PAGE_SIZE = 2
+const PAGE_SIZE = 10
+
+/** Set a param when it has a value, drop it entirely when it doesn't. */
+function setOrDelete(params: URLSearchParams, key: string, value: string) {
+  if (value) params.set(key, value)
+  else params.delete(key)
+}
 
 export function AccountsPage() {
   const { user } = useAuth()
   const isAdmin = user?.roles.includes('ROLE_ADMIN') ?? false
 
+  // The URL is the source of truth for the query, so results are shareable
+  // and the browser's back button moves through searches.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const nameParam = searchParams.get('name') ?? ''
+  const industryParam = searchParams.get('industry') ?? ''
+  const ownerParam = searchParams.get('ownerId') ?? ''
+  const pageParam = Number(searchParams.get('page') ?? '0')
+
+  // Local state holds what's typed right now; the URL only gets the settled value.
+  const [nameInput, setNameInput] = useState(nameParam)
+  const [industryInput, setIndustryInput] = useState(industryParam)
+  const debouncedName = useDebounce(nameInput)
+  const debouncedIndustry = useDebounce(industryInput)
+
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [pageNumber, setPageNumber] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
 
@@ -30,13 +50,41 @@ export function AccountsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const load = useCallback(async (page: number) => {
+  // typed text (settled) → URL
+  useEffect(() => {
+    if (debouncedName === nameParam && debouncedIndustry === industryParam) return
+    const next = new URLSearchParams(searchParams)
+    setOrDelete(next, 'name', debouncedName)
+    setOrDelete(next, 'industry', debouncedIndustry)
+    next.delete('page') // a changed filter always restarts at page 1
+    setSearchParams(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedName, debouncedIndustry])
+
+  function changePage(page: number) {
+    const next = new URLSearchParams(searchParams)
+    setOrDelete(next, 'page', page > 0 ? String(page) : '')
+    setSearchParams(next)
+  }
+
+  function changeOwner(ownerId: string) {
+    const next = new URLSearchParams(searchParams)
+    setOrDelete(next, 'ownerId', ownerId)
+    next.delete('page')
+    setSearchParams(next, { replace: true })
+  }
+
+  // URL → request
+  const load = useCallback(async () => {
     setLoading(true)
     setListError(null)
     try {
-      const result = await accountsApi.fetchAccounts(page, PAGE_SIZE, 'name,asc')
+      const result = await accountsApi.fetchAccounts(pageParam, PAGE_SIZE, 'name,asc', {
+        name: nameParam || undefined,
+        industry: industryParam || undefined,
+        ownerId: ownerParam ? Number(ownerParam) : undefined,
+      })
       setAccounts(result.content)
-      setPageNumber(result.page.number)
       setTotalPages(result.page.totalPages)
       setTotalElements(result.page.totalElements)
     } catch (err) {
@@ -44,14 +92,12 @@ export function AccountsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pageParam, nameParam, industryParam, ownerParam])
 
   useEffect(() => {
-    void load(0)
+    void load()
   }, [load])
 
-  // The owner picker needs the user list, and /api/users is admin-only — so
-  // only admins can reassign from the UI. Everyone else keeps the current owner.
   useEffect(() => {
     if (!isAdmin) return
     fetchUsers(0, 100)
@@ -59,13 +105,13 @@ export function AccountsPage() {
       .catch(() => setOwners([]))
   }, [isAdmin])
 
-  async function runMutation(action: () => Promise<unknown>, backToPage = pageNumber) {
+  async function runMutation(action: () => Promise<unknown>) {
     setSubmitting(true)
     setFormError(null)
     try {
       await action()
       setEditor({ kind: 'none' })
-      await load(backToPage)
+      await load()
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
     } finally {
@@ -74,7 +120,7 @@ export function AccountsPage() {
   }
 
   function handleCreate(request: AccountCreateRequest) {
-    void runMutation(() => accountsApi.createAccount(request), 0)
+    void runMutation(() => accountsApi.createAccount(request))
   }
 
   function handleUpdate(id: number, request: AccountUpdateRequest) {
@@ -83,9 +129,15 @@ export function AccountsPage() {
 
   function handleDelete(target: Account) {
     if (!window.confirm(`Delete ${target.name}? It will be hidden from all lists.`)) return
-    // if this was the last row on the page, step back one
-    const page = accounts.length === 1 && pageNumber > 0 ? pageNumber - 1 : pageNumber
-    void runMutation(() => accountsApi.deleteAccount(target.id), page)
+    void runMutation(() => accountsApi.deleteAccount(target.id))
+  }
+
+  const filtered = Boolean(nameParam || industryParam || ownerParam)
+
+  function clearFilters() {
+    setNameInput('')
+    setIndustryInput('')
+    setSearchParams(new URLSearchParams(), { replace: true })
   }
 
   return (
@@ -106,6 +158,43 @@ export function AccountsPage() {
             onClick={() => { setFormError(null); setEditor({ kind: 'create' }) }}
           >
             New account
+          </button>
+        )}
+      </div>
+
+      <div className="filters">
+        <input
+          className="field__input filters__search"
+          type="search"
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          placeholder="Search company name…"
+          aria-label="Search by company name"
+        />
+        <input
+          className="field__input filters__item"
+          type="search"
+          value={industryInput}
+          onChange={(e) => setIndustryInput(e.target.value)}
+          placeholder="Industry"
+          aria-label="Filter by industry"
+        />
+        {isAdmin && owners.length > 0 && (
+          <select
+            className="field__input filters__item"
+            value={ownerParam}
+            onChange={(e) => changeOwner(e.target.value)}
+            aria-label="Filter by owner"
+          >
+            <option value="">Any owner</option>
+            {owners.map((owner) => (
+              <option key={owner.id} value={owner.id}>{owner.username}</option>
+            ))}
+          </select>
+        )}
+        {filtered && (
+          <button className="btn btn--small btn--ghost" type="button" onClick={clearFilters}>
+            Clear
           </button>
         )}
       </div>
@@ -195,7 +284,9 @@ export function AccountsPage() {
                 ))}
                 {accounts.length === 0 && (
                   <tr>
-                    <td className="table__empty" colSpan={7}>No accounts yet.</td>
+                    <td className="table__empty" colSpan={7}>
+                      {filtered ? 'No accounts match these filters.' : 'No accounts yet.'}
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -203,10 +294,10 @@ export function AccountsPage() {
           </div>
 
           <Pagination
-            number={pageNumber}
+            number={pageParam}
             totalPages={totalPages}
             totalElements={totalElements}
-            onChange={(page) => void load(page)}
+            onChange={changePage}
             label="account"
           />
         </>

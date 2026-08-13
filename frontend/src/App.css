@@ -603,3 +603,29 @@ select.field__input {
   font-size: 1.125rem;
   font-weight: 600;
 }
+
+/* ── filters ──────────────────────────────────────────────────────────── */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.filters__search {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
+
+.filters__item {
+  flex: 0 1 11rem;
+}
+
+.head__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
