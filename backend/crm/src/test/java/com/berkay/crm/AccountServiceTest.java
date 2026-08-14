@@ -4,11 +4,9 @@ import com.berkay.crm.dto.AccountCreateRequest;
 import com.berkay.crm.dto.AccountResponse;
 import com.berkay.crm.dto.AccountUpdateRequest;
 import com.berkay.crm.exception.ResourceNotFoundException;
-import com.berkay.crm.model.Account;
-import com.berkay.crm.model.Contact;
-import com.berkay.crm.model.CrmUser;
-import com.berkay.crm.model.Role;
+import com.berkay.crm.model.*;
 import com.berkay.crm.repository.AccountRepository;
+import com.berkay.crm.repository.ActivityRepository;
 import com.berkay.crm.repository.ContactRepository;
 import com.berkay.crm.repository.UserRepository;
 import com.berkay.crm.service.AccountService;
@@ -40,6 +38,9 @@ public class AccountServiceTest {
 
     @Mock
     ContactRepository contactRepository;
+
+    @Mock
+    ActivityRepository activityRepository;
 
     @Mock
     UserRepository userRepository;
@@ -169,15 +170,21 @@ public class AccountServiceTest {
         // given
         CrmUser user = userWith(1L, "ROLE_SALES_REP");
         Account account = accountOwnedBy(10L, user);
+
         Contact first = new Contact();
         Contact second = new Contact();
         account.getContacts().addAll(List.of(first, second));
+
+        Activity activity = new Activity();
+        account.getActivities().add(activity);
+
         given(accountRepository.findById(10L)).willReturn(Optional.of(account));
 
         // when
         accountService.delete(10L, user);
 
         // then
+        verify(activityRepository).delete(activity);
         verify(contactRepository).delete(first);
         verify(contactRepository).delete(second);
         verify(accountRepository).delete(account);

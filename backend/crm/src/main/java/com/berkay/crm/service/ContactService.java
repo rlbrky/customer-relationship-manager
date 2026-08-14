@@ -100,7 +100,7 @@ public class ContactService {
         return contactRepository.findAll(spec, pageable).map(ContactResponse::from);
     }
 
-    private Contact loadAccessible(Long id, CrmUser currentUser) {
+    public Contact loadAccessible(Long id, CrmUser currentUser) {
 
         Contact contact = contactRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found with id: " + id));

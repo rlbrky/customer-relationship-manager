@@ -36,6 +36,17 @@ public class Account extends BaseEntity {
     @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
     private List<Contact> contacts = new ArrayList<>();
 
+    @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
+    private List<Activity> activities = new ArrayList<>();
+
+    public List<Activity> getActivities() {
+        return activities;
+    }
+
+    public void setActivities(List<Activity> activities) {
+        this.activities = activities;
+    }
+
     public List<Contact> getContacts() {
         return contacts;
     }

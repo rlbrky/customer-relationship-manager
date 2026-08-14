@@ -1,8 +1,10 @@
 package com.berkay.crm.api;
 
 import com.berkay.crm.dto.*;
+import com.berkay.crm.model.ActivityType;
 import com.berkay.crm.security.CrmUserDetails;
 import com.berkay.crm.service.AccountService;
+import com.berkay.crm.service.ActivityService;
 import com.berkay.crm.service.ContactService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -21,10 +23,12 @@ public class AccountController {
 
     private final AccountService accountService;
     private final ContactService contactService;
+    private final ActivityService activityService;
 
-    public AccountController(AccountService accountService, ContactService contactService) {
+    public AccountController(AccountService accountService, ContactService contactService, ActivityService activityService) {
         this.accountService = accountService;
         this.contactService = contactService;
+        this.activityService = activityService;
     }
 
     @GetMapping
@@ -110,5 +114,31 @@ public class AccountController {
                 .path("/api/contacts/{id}").buildAndExpand(createdContact.id()).toUri();
 
         return ResponseEntity.created(location).body(createdContact); // 201 + location
+    }
+
+    @GetMapping("/{accountId}/activities")
+    public Page<ActivityResponse> getActivities(
+            @PathVariable Long accountId,
+            @PageableDefault(size = 20, sort = "occurredAt") Pageable pageable,
+            @AuthenticationPrincipal CrmUserDetails principal,
+            ActivityType type
+    ) {
+
+        return activityService.findByAccount(accountId, pageable, principal.getCrmUser(), type);
+    }
+
+    @PostMapping("/{accountId}/activies")
+    public ResponseEntity<ActivityResponse> createActivities(
+            @Valid @RequestBody ActivityCreateRequest request,
+            @PathVariable Long accountId,
+            @AuthenticationPrincipal CrmUserDetails principal
+    ) {
+
+        ActivityResponse createdActivity = activityService.create(accountId, request, principal.getCrmUser());
+
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/activities/{id}").buildAndExpand(createdActivity.id()).toUri();
+
+        return ResponseEntity.created(location).body(createdActivity);
     }
 }

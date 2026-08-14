@@ -7,6 +7,7 @@ import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.repository.AccountRepository;
+import com.berkay.crm.repository.ActivityRepository;
 import com.berkay.crm.repository.ContactRepository;
 import com.berkay.crm.repository.UserRepository;
 import com.berkay.crm.security.Roles;
@@ -29,12 +30,16 @@ public class AccountService {
 
     private final ContactRepository contactRepository;
 
+    private final ActivityRepository activityRepository;
+
     private final UserRepository userRepository;
 
-    public AccountService(AccountRepository accountRepository, UserRepository userRepository, ContactRepository contactRepository) {
+    public AccountService(AccountRepository accountRepository, UserRepository userRepository,
+                          ContactRepository contactRepository, ActivityRepository activityRepository) {
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
         this.contactRepository = contactRepository;
+        this.activityRepository = activityRepository;
     }
 
     @Transactional
@@ -69,6 +74,7 @@ public class AccountService {
 
         Account account = loadAccessible(id, currentUser);
         account.getContacts().forEach(contactRepository::delete); // children first
+        account.getActivities().forEach(activityRepository::delete); // delete activities as well
         accountRepository.delete(account); // @SQLDelete turns this into a soft delete
     }
 
