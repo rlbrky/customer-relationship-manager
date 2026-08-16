@@ -6,6 +6,8 @@ interface PaginationProps {
   onChange: (page: number) => void
   /** singular noun for the status line, e.g. "account" → "5 accounts" */
   label?: string
+  /** override when the plural isn't just label + "s" (activity → activities) */
+  labelPlural?: string
 }
 
 export function Pagination({
@@ -14,6 +16,7 @@ export function Pagination({
   totalElements,
   onChange,
   label = 'item',
+  labelPlural,
 }: PaginationProps) {
   if (totalElements === 0) return null
 
@@ -24,7 +27,7 @@ export function Pagination({
     <nav className="pager" aria-label="Pagination">
       <span className="pager__status">
         Page {number + 1} of {Math.max(totalPages, 1)} · {totalElements}{' '}
-        {totalElements === 1 ? label : `${label}s`}
+        {totalElements === 1 ? label : (labelPlural ?? `${label}s`)}
       </span>
       <div className="pager__buttons">
         <button

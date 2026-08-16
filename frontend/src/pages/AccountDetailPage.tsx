@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useDebounce } from '../hooks/useDebounce'
 import { ContactForm } from '../components/ContactForm'
+import { AccountActivities } from '../components/AccountActivities'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
 import { fetchAccount } from '../api/accounts'
@@ -249,6 +250,9 @@ export function AccountDetailPage() {
         onChange={(page) => void load(page)}
         label="contact"
       />
+
+      {/* contacts are passed down so the "with whom" picker doesn't refetch them */}
+      <AccountActivities accountId={accountId} contacts={contacts} />
     </main>
   )
 }
