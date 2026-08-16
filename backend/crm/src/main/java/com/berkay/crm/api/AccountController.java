@@ -127,7 +127,7 @@ public class AccountController {
         return activityService.findByAccount(accountId, pageable, principal.getCrmUser(), type);
     }
 
-    @PostMapping("/{accountId}/activies")
+    @PostMapping("/{accountId}/activities")
     public ResponseEntity<ActivityResponse> createActivities(
             @Valid @RequestBody ActivityCreateRequest request,
             @PathVariable Long accountId,
