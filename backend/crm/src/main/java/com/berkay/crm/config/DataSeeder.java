@@ -2,8 +2,11 @@ package com.berkay.crm.config;
 
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
+import com.berkay.crm.model.Deal;
+import com.berkay.crm.model.DealStage;
 import com.berkay.crm.model.Role;
 import com.berkay.crm.repository.AccountRepository;
+import com.berkay.crm.repository.DealRepository;
 import com.berkay.crm.repository.RoleRepository;
 import com.berkay.crm.repository.UserRepository;
 import org.springframework.boot.ApplicationArguments;
@@ -12,6 +15,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 @Component
 @Profile("dev")
@@ -25,12 +32,16 @@ public class DataSeeder implements ApplicationRunner {
 
     private final AccountRepository accountRepository;
 
+    private final DealRepository dealRepository;
+
     public DataSeeder(UserRepository userRepository, RoleRepository roleRepository,
-                      PasswordEncoder passwordEncoder, AccountRepository accountRepository) {
+                      PasswordEncoder passwordEncoder, AccountRepository accountRepository,
+                      DealRepository dealRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.accountRepository = accountRepository;
+        this.dealRepository = dealRepository;
     }
 
     @Override
@@ -76,6 +87,24 @@ public class DataSeeder implements ApplicationRunner {
                 account.setIndustry("Technology");
                 account.setOwner(i % 2 == 0 ? admin : rep);   // mixed owners
                 accountRepository.save(account);
+            }
+        }
+
+        // Seeded straight through the repository, so these deals have NO stage
+        // history — DealService.create is what writes that. History appears once
+        // a card is actually moved on the board.
+        if (dealRepository.count() == 0) {
+            List<Account> accounts = accountRepository.findAll();
+            DealStage[] stages = DealStage.values();
+
+            for (int i = 0; i < accounts.size(); i++) {
+                Deal deal = new Deal();
+                deal.setTitle(accounts.get(i).getName() + " renewal");
+                deal.setValue(new BigDecimal("1250.00").multiply(BigDecimal.valueOf(i + 1L)));
+                deal.setStage(stages[i % stages.length]);   // spread across every board column
+                deal.setExpectedCloseDate(LocalDate.now().plusDays(15L * (i + 1)));
+                deal.setAccount(accounts.get(i));
+                dealRepository.save(deal);
             }
         }
     }
