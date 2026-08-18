@@ -6,6 +6,7 @@ import com.berkay.crm.security.CrmUserDetails;
 import com.berkay.crm.service.AccountService;
 import com.berkay.crm.service.ActivityService;
 import com.berkay.crm.service.ContactService;
+import com.berkay.crm.service.DealService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,11 +25,14 @@ public class AccountController {
     private final AccountService accountService;
     private final ContactService contactService;
     private final ActivityService activityService;
+    private final DealService dealService;
 
-    public AccountController(AccountService accountService, ContactService contactService, ActivityService activityService) {
+    public AccountController(AccountService accountService, ContactService contactService,
+                             ActivityService activityService, DealService dealService) {
         this.accountService = accountService;
         this.contactService = contactService;
         this.activityService = activityService;
+        this.dealService = dealService;
     }
 
     @GetMapping
@@ -140,5 +144,30 @@ public class AccountController {
                 .path("/api/activities/{id}").buildAndExpand(createdActivity.id()).toUri();
 
         return ResponseEntity.created(location).body(createdActivity);
+    }
+
+    @GetMapping("/{accountId}/deals")
+    public Page<DealResponse> getDeals(
+            @PathVariable Long accountId,
+            @PageableDefault(size = 20, sort = "expectedCloseDate") Pageable pageable,
+            @AuthenticationPrincipal CrmUserDetails principal
+    ) {
+
+        return dealService.findByAccount(accountId, pageable, principal.getCrmUser());
+    }
+
+    @PostMapping("/{accountId}/deals")
+    public ResponseEntity<DealResponse> createDeal(
+            @PathVariable Long accountId,
+            @Valid @RequestBody DealCreateRequest request,
+            @AuthenticationPrincipal CrmUserDetails principal
+    ) {
+
+        DealResponse createdDeal = dealService.create(accountId, request, principal.getCrmUser());
+
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/deals/{id}").buildAndExpand(createdDeal.id()).toUri();
+
+        return ResponseEntity.created(location).body(createdDeal);
     }
 }
