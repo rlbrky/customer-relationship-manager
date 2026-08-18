@@ -69,14 +69,14 @@ public class DealController {
             @PageableDefault(size = 20, sort = "expectedCloseDate") Pageable pageable,
             @AuthenticationPrincipal CrmUserDetails principal,
             @RequestParam(required = false) DealStage stage,
-            @RequestParam(required = false) boolean open
+            @RequestParam(required = false) Boolean open
     ) {
 
         return dealService.findAll(pageable, principal.getCrmUser(), stage, open);
     }
 
     @GetMapping("/{id}")
-    public DealResponse findById(
+    public DealResponse getDeal(
             @PathVariable Long id,
             @AuthenticationPrincipal CrmUserDetails principal) {
 
@@ -84,7 +84,7 @@ public class DealController {
     }
 
     @GetMapping("/{id}/history")
-    public List<DealStageHistoryResponse> findHistory(
+    public List<DealStageHistoryResponse> getHistory(
             @PathVariable Long id,
             @AuthenticationPrincipal CrmUserDetails principal
     ) {
