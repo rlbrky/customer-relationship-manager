@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { AccountsPage } from './pages/AccountsPage'
 import { AccountDetailPage } from './pages/AccountDetailPage'
 import { ContactsPage } from './pages/ContactsPage'
+import { DealsPage } from './pages/DealsPage'
 import { UsersPage } from './pages/UsersPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AdminRoute } from './auth/AdminRoute'
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/accounts/:id" element={<AccountDetailPage />} />
           <Route path="/contacts" element={<ContactsPage />} />
+          <Route path="/deals" element={<DealsPage />} />
 
           {/* admin-only area nests a second, role-based gate */}
           <Route element={<AdminRoute />}>
