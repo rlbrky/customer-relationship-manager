@@ -6,10 +6,7 @@ import com.berkay.crm.dto.AccountUpdateRequest;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
-import com.berkay.crm.repository.AccountRepository;
-import com.berkay.crm.repository.ActivityRepository;
-import com.berkay.crm.repository.ContactRepository;
-import com.berkay.crm.repository.UserRepository;
+import com.berkay.crm.repository.*;
 import com.berkay.crm.security.Roles;
 import com.berkay.crm.repository.specification.AccountSpecifications;
 import org.springframework.data.domain.Page;
@@ -32,14 +29,19 @@ public class AccountService {
 
     private final ActivityRepository activityRepository;
 
+    private final DealRepository dealRepository;
+
     private final UserRepository userRepository;
 
     public AccountService(AccountRepository accountRepository, UserRepository userRepository,
-                          ContactRepository contactRepository, ActivityRepository activityRepository) {
+                          ContactRepository contactRepository, ActivityRepository activityRepository,
+                          DealRepository dealRepository) {
+
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
         this.contactRepository = contactRepository;
         this.activityRepository = activityRepository;
+        this.dealRepository = dealRepository;
     }
 
     @Transactional
@@ -73,8 +75,7 @@ public class AccountService {
     public void delete(Long id, CrmUser currentUser) {
 
         Account account = loadAccessible(id, currentUser);
-        account.getContacts().forEach(contactRepository::delete); // children first
-        account.getActivities().forEach(activityRepository::delete); // delete activities as well
+        cascadeChildren(account);
         accountRepository.delete(account); // @SQLDelete turns this into a soft delete
     }
 
@@ -150,5 +151,17 @@ public class AccountService {
         // always re-load: the principal's CrmUser is DETACHED (loaded at login)
         return userRepository.findById(targetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found: " + targetId));
+    }
+
+    /**
+     * @SQLDelete does not cascade, so every child type is soft-deleted explicitly.
+     * Anything new hanging off an account must be added here or it becomes an orphan:
+     * a live row whose only route into the app is through a hidden parent.
+     */
+    private void cascadeChildren(Account account) {
+
+        account.getContacts().forEach(contactRepository::delete);
+        account.getActivities().forEach(activityRepository::delete);
+        account.getDeals().forEach(dealRepository::delete);
     }
 }
