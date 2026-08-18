@@ -38,39 +38,50 @@ class DealServiceTest {
     @InjectMocks DealService dealService;
 
     private CrmUser userWith(Long id) {
+
         CrmUser user = new CrmUser();
         user.setId(id);
         user.setUsername("user" + id);
+
         Role role = new Role();
         role.setName("ROLE_SALES_REP");
         user.getRoles().add(role);
+
         return user;
     }
 
     private Account accountWith(Long id, CrmUser owner) {
+
         Account account = new Account();
         account.setId(id);
         account.setName("Acme");
         account.setOwner(owner);
+
         return account;
     }
 
     private Deal dealWith(Long id, Account account, DealStage stage, DealOutcome outcome) {
+
         Deal deal = new Deal();
         deal.setId(id);
         deal.setTitle("Renewal");
         deal.setStage(stage);
         deal.setOutcome(outcome);
         deal.setAccount(account);
+
         return deal;
     }
 
     @Test
     void create_writesInitialHistoryWithNullFromStage() {
+
         // given
         CrmUser user = userWith(1L);
-        given(accountService.loadAccessible(10L, user)).willReturn(accountWith(10L, user));
-        given(dealRepository.save(any(Deal.class))).willAnswer(inv -> inv.getArgument(0));
+        given(accountService.loadAccessible(10L, user))
+                .willReturn(accountWith(10L, user));
+
+        given(dealRepository.save(any(Deal.class)))
+                .willAnswer(inv -> inv.getArgument(0));
 
         // when
         dealService.create(10L, new DealCreateRequest(
@@ -86,6 +97,7 @@ class DealServiceTest {
 
     @Test
     void create_defaultsStageToProspectWhenAbsent() {
+
         // given
         CrmUser user = userWith(1L);
         given(accountService.loadAccessible(10L, user)).willReturn(accountWith(10L, user));
@@ -101,6 +113,7 @@ class DealServiceTest {
 
     @Test
     void changeStage_writesHistoryRow() {
+
         // given
         CrmUser user = userWith(1L);
         Account account = accountWith(10L, user);
@@ -138,6 +151,7 @@ class DealServiceTest {
 
     @Test
     void changeStage_onClosedDeal_throwsConflict() {
+
         // given — a won deal
         CrmUser user = userWith(1L);
         Account account = accountWith(10L, user);
@@ -155,6 +169,7 @@ class DealServiceTest {
 
     @Test
     void setOutcome_stampsClosedAt() {
+
         // given
         CrmUser user = userWith(1L);
         Account account = accountWith(10L, user);
@@ -174,6 +189,7 @@ class DealServiceTest {
 
     @Test
     void setOutcome_nullReopensAndClearsClosedAt() {
+
         // given — a closed deal
         CrmUser user = userWith(1L);
         Account account = accountWith(10L, user);
@@ -192,6 +208,7 @@ class DealServiceTest {
 
     @Test
     void findByAccount_propagatesAccessDenied() {
+
         // given
         CrmUser user = userWith(1L);
         given(accountService.loadAccessible(10L, user))
@@ -206,6 +223,7 @@ class DealServiceTest {
 
     @Test
     void delete_callsRepositoryDeleteForSoftDelete() {
+
         // given
         CrmUser user = userWith(1L);
         Account account = accountWith(10L, user);

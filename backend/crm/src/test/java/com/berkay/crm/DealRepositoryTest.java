@@ -76,6 +76,7 @@ public class DealRepositoryTest {
 
     @Test
     public void value_roundTripsWithoutPrecisionLoss() {
+
         // given — a value that binary floating point cannot represent exactly
         CrmUser user = newUser("rep", Roles.SALES_REP);
         Account account = newAccount(user, "Acme");
@@ -94,6 +95,7 @@ public class DealRepositoryTest {
 
     @Test
     public void history_ordersOldestFirst() {
+
         // given — three transitions recorded out of order
         CrmUser user = newUser("rep", Roles.SALES_REP);
         Account account = newAccount(user, "Acme");
@@ -119,6 +121,7 @@ public class DealRepositoryTest {
 
     @Test
     public void visibleTo_salesRepSeesOnlyOwnAccountsDeals() {
+
         // given — two accounts with different owners, one deal each
         CrmUser rep = newUser("rep", Roles.SALES_REP);
         CrmUser other = newUser("other", Roles.SALES_REP);
@@ -140,6 +143,7 @@ public class DealRepositoryTest {
 
     @Test
     public void isOpen_separatesOpenFromClosedDeals() {
+
         // given — one open deal, one won
         CrmUser user = newUser("rep", Roles.SALES_REP);
         Account account = newAccount(user, "Acme");

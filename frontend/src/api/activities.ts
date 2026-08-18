@@ -7,21 +7,6 @@ import type {
 } from '../types/activity'
 import { apiFetch } from './client'
 
-/**
- * TODO (Berkay): implement all four. Same hybrid routing as contacts —
- * the collection is nested under the account, the item is flat.
- *
- *   GET    /api/accounts/{accountId}/activities?page=&size=&sort=&type=  → Page<Activity>
- *   POST   /api/accounts/{accountId}/activities                          → Activity (201)
- *   PUT    /api/activities/{id}                                          → Activity
- *   DELETE /api/activities/{id}                                          → void (204)
- *
- * Two notes:
- *  - The timeline sorts newest-first, so pass sort = 'occurredAt,desc'.
- *    That's the order your composite index (account_id, occurred_at) exists for.
- *  - `type` is optional: append it only when set, same rule as the other clients.
- */
-
 export async function fetchActivities(
   accountId: number,
   page = 0,
