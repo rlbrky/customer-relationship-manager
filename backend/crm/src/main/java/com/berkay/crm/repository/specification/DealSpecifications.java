@@ -4,6 +4,8 @@ import com.berkay.crm.model.*;
 import com.berkay.crm.security.Roles;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDate;
+
 public final class DealSpecifications {
 
     private DealSpecifications() {}
@@ -32,9 +34,16 @@ public final class DealSpecifications {
     }
 
     public static Specification<Deal> isOpen(boolean isOpen) {
+
         return (root, query, cb) ->
                 isOpen
                 ? cb.isNull(root.get("outcome"))
                 : cb.isNotNull(root.get("outcome"));
+    }
+
+    public static Specification<Deal> expectedCloseOnOrBefore(LocalDate date) {
+
+        return (root, query, cb) ->
+                cb.lessThanOrEqualTo(root.get("expectedCloseDate"), date);
     }
 }
