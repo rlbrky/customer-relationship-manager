@@ -23,6 +23,17 @@
   --stage-2: #5598e7;
   --stage-3: #2a78d6;
   --stage-4: #1c5cab;
+
+  /* Activity types are CATEGORICAL — five unrelated identities, so five hues
+     rather than one ramp. Fixed slot order, never cycled. Validated: lightness
+     band, chroma floor, adjacent CVD separation and normal-vision floor all
+     pass; three of the five sit under 3:1 against white, which is legal only
+     because every slice carries a labelled legend entry. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
   --shadow: rgba(27, 31, 36, 0.08) 0 3px 8px;
 
   font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -56,6 +67,14 @@
     --stage-2: #256abf;
     --stage-3: #3987e5;
     --stage-4: #6da7ec;
+
+    /* The same five hues re-stepped for the dark surface, not an automatic flip.
+       All five clear 3:1 here. */
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
     --shadow: rgba(0, 0, 0, 0.4) 0 3px 8px;
   }
 }
