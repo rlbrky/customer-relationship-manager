@@ -14,6 +14,7 @@ public record DashboardSummaryResponse(
         BigDecimal winRate, // null = nothing closed yet
         long overdueTaskCount,
         List<StageSummary> pipelineByStage,
+        List<ActivityTypeSummary> activityMix,
         List<DealResponse> closingSoon
 ) {
 }
