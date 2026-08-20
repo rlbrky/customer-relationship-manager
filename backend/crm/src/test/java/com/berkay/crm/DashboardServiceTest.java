@@ -1,7 +1,9 @@
 package com.berkay.crm;
 
+import com.berkay.crm.dto.ActivityTypeSummary;
 import com.berkay.crm.dto.DashboardSummaryResponse;
 import com.berkay.crm.dto.StageSummary;
+import com.berkay.crm.model.ActivityType;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.model.DealOutcome;
 import com.berkay.crm.model.DealStage;
@@ -62,6 +64,12 @@ public class DashboardServiceTest {
         @Override public DealOutcome getOutcome() { return outcome; }
         @Override public long getDealCount() { return dealCount; }
         @Override public BigDecimal getTotalValue() { return totalValue; }
+    }
+
+    private record TypeRow(ActivityType type, long total)
+            implements ActivityRepository.TypeTotal {
+        @Override public ActivityType getType() { return type; }
+        @Override public long getTotal() { return total; }
     }
 
     private CrmUser userWith(Long id, String roleName) {
@@ -204,6 +212,7 @@ public class DashboardServiceTest {
         verify(dealRepository).pipelineByStage(ownerId.capture());
         assertThat(ownerId.getValue()).isNull();
         verify(dealRepository).closedByOutcome(null);
+        verify(activityRepository).activityMix(null);
     }
 
     @Test
@@ -220,5 +229,29 @@ public class DashboardServiceTest {
         verify(dealRepository).pipelineByStage(ownerId.capture());
         assertThat(ownerId.getValue()).isEqualTo(7L);
         verify(dealRepository).closedByOutcome(7L);
+        verify(activityRepository).activityMix(7L);
+    }
+
+    @Test
+    public void summary_fillsActivityTypesWithNoRowsAsZero() {
+
+        // given — only two of the five types have ever been logged
+        given(activityRepository.activityMix(any())).willReturn(List.of(
+                new TypeRow(ActivityType.CALL, 4L),
+                new TypeRow(ActivityType.NOTE, 1L)));
+
+        // when
+        DashboardSummaryResponse summary = dashboardService.summary(manager());
+
+        // then — five slices, always in enum order, so a colour never migrates
+        // between types as the data changes underneath the donut
+        assertThat(summary.activityMix())
+                .extracting(ActivityTypeSummary::type)
+                .containsExactly(ActivityType.CALL, ActivityType.EMAIL,
+                        ActivityType.MEETING, ActivityType.NOTE, ActivityType.TASK);
+
+        assertThat(summary.activityMix())
+                .extracting(ActivityTypeSummary::total)
+                .containsExactly(4L, 0L, 0L, 1L, 0L);
     }
 }

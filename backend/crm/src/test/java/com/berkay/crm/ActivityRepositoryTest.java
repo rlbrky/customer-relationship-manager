@@ -17,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -206,5 +207,73 @@ public class ActivityRepositoryTest {
         // all, so a wrong predicate here reads as 0 rather than as a leak.
         assertThat(activityRepository.count(overdueTasks(rep, now))).isEqualTo(1);
         assertThat(activityRepository.count(overdueTasks(manager, now))).isEqualTo(2);
+    }
+
+    // ── M10 activity mix ─────────────────────────────────────────────────────
+
+    private Activity newActivityOfType(Account account, ActivityType type, String subject) {
+        Activity activity = new Activity();
+        activity.setAccount(account);
+        activity.setType(type);
+        activity.setSubject(subject);
+        activity.setOccurredAt(Instant.now());
+        activity.setCompleted(false);
+        return activityRepository.save(activity);
+    }
+
+    private ActivityRepository.TypeTotal typeRow(List<ActivityRepository.TypeTotal> mix,
+                                                 ActivityType type) {
+        return mix.stream()
+                .filter(row -> row.getType() == type)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no row for type " + type));
+    }
+
+    @Test
+    public void activityMix_groupsByTypeAndOmitsUnusedTypes() {
+
+        // given — two of the five types are in use
+        CrmUser rep = newUser("rep", Roles.SALES_REP);
+        Account account = newAccount(rep, "Acme");
+
+        newActivityOfType(account, ActivityType.CALL, "First call");
+        newActivityOfType(account, ActivityType.CALL, "Second call");
+        newActivityOfType(account, ActivityType.NOTE, "A note");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        List<ActivityRepository.TypeTotal> mix = activityRepository.activityMix(null);
+
+        // then — EMAIL, MEETING and TASK are absent, not zero. The donut needs all
+        // five, so the service has to fill them; this pins what it fills from.
+        assertThat(mix)
+                .extracting(ActivityRepository.TypeTotal::getType)
+                .containsExactlyInAnyOrder(ActivityType.CALL, ActivityType.NOTE);
+
+        assertThat(typeRow(mix, ActivityType.CALL).getTotal()).isEqualTo(2L);
+        assertThat(typeRow(mix, ActivityType.NOTE).getTotal()).isEqualTo(1L);
+    }
+
+    @Test
+    public void activityMix_scopesToOwnerWhenOwnerIdGiven() {
+
+        // given — one call logged against each of two owners' accounts
+        CrmUser rep = newUser("rep", Roles.SALES_REP);
+        CrmUser other = newUser("other", Roles.SALES_REP);
+
+        newActivityOfType(newAccount(rep, "Mine"), ActivityType.CALL, "Mine");
+        newActivityOfType(newAccount(other, "Theirs"), ActivityType.CALL, "Theirs");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when / then — a third query means a third copy of the owner predicate,
+        // wrong-able independently of the two on DealRepository
+        assertThat(typeRow(activityRepository.activityMix(rep.getId()), ActivityType.CALL)
+                .getTotal()).isEqualTo(1L);
+        assertThat(typeRow(activityRepository.activityMix(null), ActivityType.CALL)
+                .getTotal()).isEqualTo(2L);
     }
 }
