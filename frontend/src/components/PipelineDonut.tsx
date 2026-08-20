@@ -1,6 +1,6 @@
 import { DonutChart, type DonutSlice } from './DonutChart'
 import type { StageSummary } from '../types/dashboard'
-import { dealStageLabel } from '../types/deal'
+import { DEAL_STAGES, dealStageLabel } from '../types/deal'
 
 interface PipelineDonutProps {
   stages: StageSummary[]
@@ -16,10 +16,12 @@ interface PipelineDonutProps {
  * different hues would claim the stages have nothing to do with each other.
  */
 export function PipelineDonut({ stages }: PipelineDonutProps) {
-  const slices: DonutSlice[] = stages.map((stage, index) => ({
+  const slices: DonutSlice[] = stages.map((stage) => ({
     label: dealStageLabel(stage.stage),
     value: stage.dealCount,
-    color: `var(--stage-${index + 1})`,
+    // Stepped by the stage's position in the pipeline, not its position in the
+    // response — so PROSPECT stays the palest step whatever the server sends.
+    color: `var(--stage-${DEAL_STAGES.indexOf(stage.stage) + 1})`,
     display: String(stage.dealCount),
   }))
 
