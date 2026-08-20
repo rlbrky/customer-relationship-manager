@@ -1121,8 +1121,9 @@ textarea.field__input--area {
 .donut {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 1.25rem;
   margin-top: 1rem;
 }
 
@@ -1177,8 +1178,8 @@ textarea.field__input--area {
 
 /* Text wears text tokens — the swatch beside it carries the identity. */
 .donut__legend {
-  flex: 1 1 10rem;
-  min-width: 9rem;
+  flex: 1 1 8rem;
+  min-width: 7.5rem;
   margin: 0;
   display: flex;
   flex-direction: column;
