@@ -1,5 +1,6 @@
 package com.berkay.crm.service;
 
+import com.berkay.crm.dto.ActivityTypeSummary;
 import com.berkay.crm.dto.DashboardSummaryResponse;
 import com.berkay.crm.dto.DealResponse;
 import com.berkay.crm.dto.StageSummary;
@@ -96,6 +97,7 @@ public class DashboardService {
                 winRate(closed.wonCount(), closed.lostCount()),
                 overdueTaskCount(user),
                 pipeline,
+                activityMix(ownerId),
                 closingSoon(user)
         );
     }
@@ -181,6 +183,25 @@ public class DashboardService {
                 .findAll(spec, PageRequest.of(0, CLOSING_SOON_LIMIT, Sort.by("expectedCloseDate")))
                 .map(DealResponse::from)
                 .getContent();
+    }
+
+    /**
+     * Same gap-filling as pipelineByStage: GROUP BY omits types nobody has used,
+     * and the donut needs all five in enum order so a colour never moves between
+     * types when the data changes.
+     */
+    private List<ActivityTypeSummary> activityMix(Long ownerId) {
+
+        Map<ActivityType, ActivityRepository.TypeTotal> rows = activityRepository.activityMix(ownerId)
+                .stream()
+                .collect(Collectors.toMap(ActivityRepository.TypeTotal::getType, Function.identity()));
+
+        return Arrays.stream(ActivityType.values())
+                .map(type -> {
+                    ActivityRepository.TypeTotal row = rows.get(type);
+                    return new ActivityTypeSummary(type, row == null ? 0L : row.getTotal());
+                })
+                .toList();
     }
 
     /** Internal carrier — never leaves the service, so it stays out of dto/. */
