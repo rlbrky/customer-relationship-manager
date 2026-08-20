@@ -1,5 +1,7 @@
 import type { Deal } from './deal'
 import type { DealStage } from './deal'
+import type {ActivityType} from "./activity.ts";
+
 
 export interface StageSummary {
     stage: DealStage
@@ -21,4 +23,11 @@ export interface DashboardSummary {
     /* Always four entries, in board order - the service guarantees it. */
     pipelineByStage: StageSummary[]
     closingSoon: Deal[]
+    activityMix: ActivityTypeSummary[]
+}
+
+export interface ActivityTypeSummary {
+
+    type: ActivityType
+    total: number
 }
