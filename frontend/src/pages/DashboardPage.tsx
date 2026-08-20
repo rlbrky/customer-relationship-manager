@@ -5,6 +5,7 @@ import { StatTile } from '../components/StatTile'
 import { StageFunnel } from '../components/StageFunnel'
 import { PipelineDonut } from '../components/PipelineDonut'
 import { OutcomeDonut } from '../components/OutcomeDonut'
+import { ActivityMixDonut } from '../components/ActivityMixDonut'
 import { ClosingSoon } from '../components/ClosingSoon'
 import { fetchHealth } from '../api/health'
 import { fetchDashboardSummary } from '../api/dashboard'
@@ -91,6 +92,12 @@ export function DashboardPage() {
                 lostCount={summary.lostCount}
                 winRate={summary.winRate}
               />
+            </section>
+
+            <section className="panel">
+              <h2 className="section__title">Activity mix</h2>
+              <p className="panel__sub">How the team has been reaching out</p>
+              <ActivityMixDonut mix={summary.activityMix} />
             </section>
           </div>
 
