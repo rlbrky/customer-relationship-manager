@@ -3,11 +3,12 @@ import { useAuth } from '../auth/useAuth'
 import { HealthCard, type HealthCardProps } from '../components/HealthCard'
 import { StatTile } from '../components/StatTile'
 import { StageFunnel } from '../components/StageFunnel'
-import { WinLossBar } from '../components/WinLossBar'
+import { PipelineDonut } from '../components/PipelineDonut'
+import { OutcomeDonut } from '../components/OutcomeDonut'
 import { ClosingSoon } from '../components/ClosingSoon'
 import { fetchHealth } from '../api/health'
+import { fetchDashboardSummary } from '../api/dashboard'
 import { ApiError } from '../api/client'
-import { fetchDashboardSummary } from "../api/dashboard.ts";
 import type { DashboardSummary } from '../types/dashboard'
 import { formatMoney } from '../utils/money'
 
@@ -76,20 +77,30 @@ export function DashboardPage() {
 
           <div className="panels">
             <section className="panel">
-              <h2 className="section__title">Open pipeline by stage</h2>
-              <StageFunnel stages={summary.pipelineByStage} />
+              <h2 className="section__title">Deals by stage</h2>
+              <p className="panel__sub">How many open deals sit in each stage</p>
+              <PipelineDonut stages={summary.pipelineByStage} />
             </section>
 
             <section className="panel">
-              <h2 className="section__title">Won vs lost</h2>
-              <WinLossBar
+              <h2 className="section__title">Deals by outcome</h2>
+              <p className="panel__sub">Where every deal stands</p>
+              <OutcomeDonut
+                openCount={summary.openDealCount}
                 wonCount={summary.wonCount}
                 lostCount={summary.lostCount}
-                wonValue={summary.wonValue}
                 winRate={summary.winRate}
               />
             </section>
           </div>
+
+          <section className="panel">
+            <h2 className="section__title">Open pipeline value by stage</h2>
+            <p className="panel__sub">
+              Money, not headcount — a stage can hold one large deal or six small ones
+            </p>
+            <StageFunnel stages={summary.pipelineByStage} />
+          </section>
 
           <section className="panel">
             <h2 className="section__title">Closing soon</h2>
