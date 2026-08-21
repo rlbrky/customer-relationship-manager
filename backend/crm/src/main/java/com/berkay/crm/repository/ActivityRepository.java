@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface ActivityRepository extends JpaRepository<Activity, Long>,
@@ -28,8 +30,30 @@ public interface ActivityRepository extends JpaRepository<Activity, Long>,
     """)
     List<TypeTotal> activityMix(@Param("ownerId") Long ownerId);
 
+    /**
+     * Activities per calendar day since {@code since}.
+     *
+     * The cast collapses an absolute moment into a calendar day, which is a local
+     * concept — so the bucket boundary follows however occurredAt is stored, not
+     * the viewer's midnight. Acceptable here; per-viewer bucketing is a feature.
+     */
+    @Query("""
+           select cast(a.occurredAt as LocalDate) as day,
+                  count(a) as total
+           from Activity a
+           where a.occurredAt >= :since
+             and (:ownerId is null or a.account.owner.id = :ownerId)
+           group by cast(a.occurredAt as LocalDate)
+           """)
+    List<DailyTotal> activityByDay(@Param("since") Instant since, @Param("ownerId") Long ownerId);
+
     interface TypeTotal {
         ActivityType getType();
+        long getTotal();
+    }
+
+    interface DailyTotal {
+        LocalDate getDay();
         long getTotal();
     }
 }
