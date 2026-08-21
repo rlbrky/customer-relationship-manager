@@ -22,14 +22,22 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Component
 @Profile("dev")
 public class DataSeeder implements ApplicationRunner {
+
+    /** Matches DashboardService.TREND_DAYS — the trend chart's window. */
+    private static final int HISTORY_DAYS = 30;
+
+    /** Below this, the trend chart is a single spike on today. */
+    private static final int HISTORY_TARGET = 30;
 
     private final UserRepository userRepository;
 
@@ -147,6 +155,61 @@ public class DataSeeder implements ApplicationRunner {
                 activityRepository.save(task);
             }
         }
+
+        // Everything above is stamped with Instant.now(), so the trend chart draws
+        // one spike on today and the weekday heatmap lights a single cell. Spread a
+        // month of history behind it. Guarded on a volume threshold rather than on
+        // zero, so it fires once on a database that already holds a few activities.
+        if (activityRepository.count() < HISTORY_TARGET) {
+            List<Account> accounts = accountRepository.findAll();
+            ActivityType[] types = ActivityType.values();
+            LocalDate today = LocalDate.now();
+
+            for (int daysAgo = 0; daysAgo < HISTORY_DAYS; daysAgo++) {
+                LocalDate day = today.minusDays(daysAgo);
+
+                // Quiet weekends are what give the weekday heatmap something to say;
+                // a flat series would render as seven identical cells.
+                int perDay = switch (day.getDayOfWeek()) {
+                    case SATURDAY, SUNDAY -> 0;
+                    case TUESDAY, WEDNESDAY -> 3;
+                    case MONDAY, THURSDAY -> 2;
+                    default -> 1;
+                };
+
+                for (int n = 0; n < perDay; n++) {
+                    Account account = accounts.get((daysAgo + n) % accounts.size());
+                    ActivityType type = types[(daysAgo + n) % types.length];
+
+                    Activity activity = new Activity();
+                    activity.setAccount(account);
+                    activity.setType(type);
+                    activity.setSubject(verbFor(type) + " " + account.getName());
+                    // UTC, matching how the daily aggregate buckets these
+                    activity.setOccurredAt(day.atTime(9 + n, 30).toInstant(ZoneOffset.UTC));
+                    activity.setCompleted(false);
+
+                    if (type == ActivityType.TASK) {
+                        activity.setDueAt(day.atTime(17, 0));
+                        // Older tasks are done; the last week's are still open, which
+                        // leaves the overdue tile and the completion meter both non-trivial.
+                        activity.setCompleted(daysAgo > 7);
+                    }
+
+                    activityRepository.save(activity);
+                }
+            }
+        }
+    }
+
+    private String verbFor(ActivityType type) {
+        return switch (type) {
+            case CALL -> "Called";
+            case EMAIL -> "Emailed";
+            case MEETING -> "Met with";
+            case NOTE -> "Note on";
+            case TASK -> "Follow up with";
+        };
     }
 
     /** Straight through the repository, so no stage history is written. */
