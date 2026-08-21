@@ -1,9 +1,11 @@
 package com.berkay.crm.service;
 
 import com.berkay.crm.dto.ActivityTypeSummary;
+import com.berkay.crm.dto.DailyActivity;
 import com.berkay.crm.dto.DashboardSummaryResponse;
 import com.berkay.crm.dto.DealResponse;
 import com.berkay.crm.dto.StageSummary;
+import com.berkay.crm.model.Activity;
 import com.berkay.crm.model.ActivityType;
 import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.model.Deal;
@@ -26,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +49,9 @@ public class DashboardService {
     private static final int CLOSING_SOON_DAYS = 30;
 
     private static final int CLOSING_SOON_LIMIT = 5;
+
+    /** How far back the activity trend looks. */
+    private static final int TREND_DAYS = 30;
 
     /** A ratio, not money: scale 2 would throw away real precision. */
     private static final int WIN_RATE_SCALE = 4;
@@ -77,6 +84,11 @@ public class DashboardService {
         List<StageSummary> pipeline = pipelineByStage(ownerId);
         ClosedTotals closed = closedByOutcome(ownerId);
 
+        // Two counts off one composed specification — the meter needs no query of
+        // its own, only a narrower predicate over the same rows.
+        Specification<Activity> tasks = ActivitySpecifications.visibleTo(user)
+                .and(ActivitySpecifications.ofType(ActivityType.TASK));
+
         // Four numbers, summed in Java. Fifty thousand would have to be summed in SQL —
         // that distinction is the whole reason pipelineByStage exists.
         long openDealCount = pipeline.stream()
@@ -98,7 +110,10 @@ public class DashboardService {
                 overdueTaskCount(user),
                 pipeline,
                 activityMix(ownerId),
-                closingSoon(user)
+                closingSoon(user),
+                activityByDay(ownerId),
+                activityRepository.count(tasks),
+                activityRepository.count(tasks.and(ActivitySpecifications.isCompleted(true)))
         );
     }
 
@@ -201,6 +216,29 @@ public class DashboardService {
                     ActivityRepository.TypeTotal row = rows.get(type);
                     return new ActivityTypeSummary(type, row == null ? 0L : row.getTotal());
                 })
+                .toList();
+    }
+
+    /**
+     * The trend window, every day present.
+     *
+     * A day with no activity must be a zero, not a missing point: a line chart
+     * that skips empty days draws a slope straight through the gap and invents
+     * activity that never happened. Same gap-filling as the stages, except the
+     * thing being walked is a date range rather than an enum.
+     */
+    private List<DailyActivity> activityByDay(Long ownerId) {
+
+        LocalDate today = LocalDate.now();
+        LocalDate from = today.minusDays(TREND_DAYS - 1L);
+        Instant since = from.atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        Map<LocalDate, Long> rows = activityRepository.activityByDay(since, ownerId).stream()
+                .collect(Collectors.toMap(ActivityRepository.DailyTotal::getDay,
+                                          ActivityRepository.DailyTotal::getTotal));
+
+        return from.datesUntil(today.plusDays(1))
+                .map(day -> new DailyActivity(day, rows.getOrDefault(day, 0L)))
                 .toList();
     }
 
