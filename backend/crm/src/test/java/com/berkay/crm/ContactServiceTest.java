@@ -17,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
@@ -108,10 +109,12 @@ public class ContactServiceTest {
                 .willThrow(new AccessDeniedException("Denied"));
 
         // when + then
-        //assertThatThrownBy(() -> contactService.findByAccount(2L, Pageable.unpaged(), user))
-                //.isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> contactService.findByAccount(2L, Pageable.unpaged(), user, null))
+                .isInstanceOf(AccessDeniedException.class);
 
-        //verify(contactRepository, never()).findByAccountId(any(), any()); // should never query
+        // The guard has to run BEFORE the query, not filter its results — otherwise
+        // an unauthorised caller still costs a database round trip.
+        verify(contactRepository, never()).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
