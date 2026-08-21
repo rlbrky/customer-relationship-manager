@@ -15,6 +15,10 @@ public record DashboardSummaryResponse(
         long overdueTaskCount,
         List<StageSummary> pipelineByStage,
         List<ActivityTypeSummary> activityMix,
-        List<DealResponse> closingSoon
+        List<DealResponse> closingSoon,
+        /** One entry per day of the trend window, gap-filled — never sparse. */
+        List<DailyActivity> activityByDay,
+        long taskCount,
+        long completedTaskCount
 ) {
 }
