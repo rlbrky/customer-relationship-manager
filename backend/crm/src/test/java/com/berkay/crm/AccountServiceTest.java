@@ -8,6 +8,7 @@ import com.berkay.crm.model.*;
 import com.berkay.crm.repository.AccountRepository;
 import com.berkay.crm.repository.ActivityRepository;
 import com.berkay.crm.repository.ContactRepository;
+import com.berkay.crm.repository.DealRepository;
 import com.berkay.crm.repository.UserRepository;
 import com.berkay.crm.service.AccountService;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,9 @@ public class AccountServiceTest {
 
     @Mock
     ActivityRepository activityRepository;
+
+    @Mock
+    DealRepository dealRepository;
 
     @Mock
     UserRepository userRepository;
@@ -178,15 +182,20 @@ public class AccountServiceTest {
         Activity activity = new Activity();
         account.getActivities().add(activity);
 
+        Deal deal = new Deal();
+        account.getDeals().add(deal);
+
         given(accountRepository.findById(10L)).willReturn(Optional.of(account));
 
         // when
         accountService.delete(10L, user);
 
-        // then
+        // then — every child type, or the missing one becomes an orphan: a live
+        // row whose only route into the app is through a hidden parent
         verify(activityRepository).delete(activity);
         verify(contactRepository).delete(first);
         verify(contactRepository).delete(second);
+        verify(dealRepository).delete(deal);
         verify(accountRepository).delete(account);
     }
 }
