@@ -1,5 +1,5 @@
 import type { StageSummary } from '../types/dashboard'
-import { dealStageLabel } from '../types/deal'
+import { DEAL_STAGES, dealStageLabel } from '../types/deal'
 import { formatMoney } from '../utils/money'
 
 interface StageFunnelProps {
@@ -19,7 +19,12 @@ export function StageFunnel({ stages }: StageFunnelProps) {
       {stages.map((stage) => {
         // Every stage empty means max is 0 — dividing by it would give NaN and
         // React would render "NaN%" straight into the style attribute.
-        const width = max === 0 ? 0 : (stage.totalValue / max) * 100
+        const share = max === 0 ? 0 : (stage.totalValue / max) * 100
+
+        // One 250k deal beside three 3k ones is a 100:1 ratio, and the small bars
+        // round down to nothing. The floor keeps a non-zero value visibly non-zero;
+        // the exact figure sits underneath, so nothing is being overstated.
+        const width = stage.totalValue > 0 ? Math.max(share, 1.5) : 0
 
         return (
           <div className="funnel__row" key={stage.stage}>
@@ -32,7 +37,16 @@ export function StageFunnel({ stages }: StageFunnelProps) {
 
             {/* The numbers are already text, so the bar itself is decoration. */}
             <div className="funnel__track" aria-hidden="true">
-              <div className="funnel__fill" style={{ width: `${width}%` }} />
+              {/* Same ramp step as the donut, so a stage keeps one identity across
+                  both panels. Green here would be the status token for "good",
+                  which pipeline value is not. */}
+              <div
+                className="funnel__fill"
+                style={{
+                  width: `${width}%`,
+                  background: `var(--stage-${DEAL_STAGES.indexOf(stage.stage) + 1})`,
+                }}
+              />
             </div>
 
             <div className="funnel__value">{formatMoney(stage.totalValue)}</div>
