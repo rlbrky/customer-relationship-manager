@@ -1,6 +1,7 @@
 package com.berkay.crm;
 
 import com.berkay.crm.dto.ActivityTypeSummary;
+import com.berkay.crm.dto.DailyActivity;
 import com.berkay.crm.dto.DashboardSummaryResponse;
 import com.berkay.crm.dto.StageSummary;
 import com.berkay.crm.model.ActivityType;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,6 +71,12 @@ public class DashboardServiceTest {
     private record TypeRow(ActivityType type, long total)
             implements ActivityRepository.TypeTotal {
         @Override public ActivityType getType() { return type; }
+        @Override public long getTotal() { return total; }
+    }
+
+    private record DayRow(LocalDate day, long total)
+            implements ActivityRepository.DailyTotal {
+        @Override public LocalDate getDay() { return day; }
         @Override public long getTotal() { return total; }
     }
 
@@ -253,5 +261,29 @@ public class DashboardServiceTest {
         assertThat(summary.activityMix())
                 .extracting(ActivityTypeSummary::total)
                 .containsExactly(4L, 0L, 0L, 1L, 0L);
+    }
+
+    @Test
+    public void summary_fillsEveryDayInTheTrendWindow() {
+
+        // given — the query answers for two days out of thirty
+        LocalDate today = LocalDate.now();
+        given(activityRepository.activityByDay(any(), any())).willReturn(List.of(
+                new DayRow(today, 3L),
+                new DayRow(today.minusDays(2), 1L)));
+
+        // when
+        DashboardSummaryResponse summary = dashboardService.summary(manager());
+
+        // then — thirty contiguous points, oldest first, quiet days as zeros. A
+        // sparse series would make the chart slope through the gap and show
+        // activity on days when nothing happened.
+        assertThat(summary.activityByDay()).hasSize(30);
+        assertThat(summary.activityByDay().get(0).day()).isEqualTo(today.minusDays(29));
+        assertThat(summary.activityByDay().get(29).day()).isEqualTo(today);
+
+        assertThat(summary.activityByDay())
+                .extracting(DailyActivity::total)
+                .endsWith(1L, 0L, 3L);
     }
 }

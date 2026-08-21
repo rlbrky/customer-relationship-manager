@@ -15,7 +15,9 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -275,5 +277,95 @@ public class ActivityRepositoryTest {
                 .getTotal()).isEqualTo(1L);
         assertThat(typeRow(activityRepository.activityMix(null), ActivityType.CALL)
                 .getTotal()).isEqualTo(2L);
+    }
+
+    // ── M10 activity trend ───────────────────────────────────────────────────
+
+    private ActivityRepository.DailyTotal dayRow(List<ActivityRepository.DailyTotal> days,
+                                                 LocalDate day) {
+        return days.stream()
+                .filter(row -> row.getDay().equals(day))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no row for day " + day));
+    }
+
+    /**
+     * Midday on purpose. The cast collapses an Instant into a calendar day using
+     * however the column is stored, so a fixture near midnight would make this test
+     * pass or fail on the machine's timezone rather than on the query.
+     */
+    private Instant middayOn(int year, int month, int dayOfMonth, int hour) {
+        return LocalDate.of(year, month, dayOfMonth).atTime(hour, 0).toInstant(ZoneOffset.UTC);
+    }
+
+    @Test
+    public void activityByDay_groupsByCalendarDayAndOmitsQuietDays() {
+
+        // given — two activities on one day, one on another, nothing between
+        CrmUser rep = newUser("rep", Roles.SALES_REP);
+        Account account = newAccount(rep, "Acme");
+
+        newActivity(account, null, "Morning call", middayOn(2026, 3, 10, 9));
+        newActivity(account, null, "Afternoon call", middayOn(2026, 3, 10, 14));
+        newActivity(account, null, "Two days later", middayOn(2026, 3, 12, 11));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        List<ActivityRepository.DailyTotal> days = activityRepository.activityByDay(
+                middayOn(2026, 3, 1, 0), null);
+
+        // then — 11 March has nothing and is simply absent. The service turns that
+        // into a zero; a line chart handed a gap would slope through it.
+        assertThat(days)
+                .extracting(ActivityRepository.DailyTotal::getDay)
+                .containsExactlyInAnyOrder(LocalDate.of(2026, 3, 10), LocalDate.of(2026, 3, 12));
+
+        assertThat(dayRow(days, LocalDate.of(2026, 3, 10)).getTotal()).isEqualTo(2L);
+        assertThat(dayRow(days, LocalDate.of(2026, 3, 12)).getTotal()).isEqualTo(1L);
+    }
+
+    @Test
+    public void activityByDay_excludesActivitiesBeforeSince() {
+
+        // given — one inside the window, one well before it
+        CrmUser rep = newUser("rep", Roles.SALES_REP);
+        Account account = newAccount(rep, "Acme");
+
+        newActivity(account, null, "In window", middayOn(2026, 3, 20, 10));
+        newActivity(account, null, "Ancient history", middayOn(2026, 1, 5, 10));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        List<ActivityRepository.DailyTotal> days = activityRepository.activityByDay(
+                middayOn(2026, 3, 1, 0), null);
+
+        // then
+        assertThat(days).hasSize(1);
+        assertThat(days.get(0).getDay()).isEqualTo(LocalDate.of(2026, 3, 20));
+    }
+
+    @Test
+    public void activityByDay_scopesToOwnerWhenOwnerIdGiven() {
+
+        // given — one activity each on two owners' accounts, same day
+        CrmUser rep = newUser("rep", Roles.SALES_REP);
+        CrmUser other = newUser("other", Roles.SALES_REP);
+
+        newActivity(newAccount(rep, "Mine"), null, "Mine", middayOn(2026, 3, 10, 9));
+        newActivity(newAccount(other, "Theirs"), null, "Theirs", middayOn(2026, 3, 10, 9));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when / then — the fourth copy of the owner predicate in the codebase
+        Instant since = middayOn(2026, 3, 1, 0);
+        assertThat(dayRow(activityRepository.activityByDay(since, rep.getId()),
+                LocalDate.of(2026, 3, 10)).getTotal()).isEqualTo(1L);
+        assertThat(dayRow(activityRepository.activityByDay(since, null),
+                LocalDate.of(2026, 3, 10)).getTotal()).isEqualTo(2L);
     }
 }
