@@ -7,6 +7,9 @@ import { PipelineDonut } from '../components/PipelineDonut'
 import { OutcomeDonut } from '../components/OutcomeDonut'
 import { ActivityMixDonut } from '../components/ActivityMixDonut'
 import { ClosingSoon } from '../components/ClosingSoon'
+import { AreaChart } from '../components/AreaChart'
+import { WeekdayHeatmap } from '../components/WeekdayHeatmap'
+import { Meter } from '../components/Meter'
 import { fetchHealth } from '../api/health'
 import { fetchDashboardSummary } from '../api/dashboard'
 import { ApiError } from '../api/client'
@@ -74,6 +77,12 @@ export function DashboardPage() {
               value={String(summary.overdueTaskCount)}
               tone={summary.overdueTaskCount > 0 ? 'down' : 'neutral'}
             />
+            <StatTile
+              label="Activity"
+              value={String(summary.activityByDay.reduce((sum, d) => sum + d.total, 0))}
+              hint="last 30 days"
+              spark={summary.activityByDay.map((d) => d.total)}
+            />
           </div>
 
           <div className="panels">
@@ -98,6 +107,34 @@ export function DashboardPage() {
               <h2 className="section__title">Activity mix</h2>
               <p className="panel__sub">How the team has been reaching out</p>
               <ActivityMixDonut mix={summary.activityMix} />
+            </section>
+          </div>
+
+          <section className="panel">
+            <h2 className="section__title">Activity over time</h2>
+            <p className="panel__sub">Interactions logged per day, last 30 days</p>
+            <AreaChart
+              points={summary.activityByDay}
+              ariaLabel="Activities logged per day over the last thirty days"
+            />
+          </section>
+
+          <div className="panels">
+            <section className="panel">
+              <h2 className="section__title">Busiest days</h2>
+              <p className="panel__sub">The same 30 days, folded onto the week</p>
+              <WeekdayHeatmap points={summary.activityByDay} />
+            </section>
+
+            <section className="panel">
+              <h2 className="section__title">Task completion</h2>
+              <p className="panel__sub">Tasks marked done, all time</p>
+              <Meter
+                value={summary.completedTaskCount}
+                max={summary.taskCount}
+                caption="tasks completed"
+                emptyMessage="No tasks have been created yet."
+              />
             </section>
           </div>
 
