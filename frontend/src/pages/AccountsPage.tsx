@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { useDebounce } from '../hooks/useDebounce'
 import { AccountForm } from '../components/AccountForm'
+import { ConflictBanner } from '../components/ConflictBanner'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
 import * as accountsApi from '../api/accounts'
@@ -246,19 +247,10 @@ export function AccountsPage() {
       {editor.kind === 'edit' && (
         <>
           {conflict && (
-            <div className="conflict" role="alert">
-              <p className="conflict__text">
-                Someone else changed this account while you were editing. Your changes
-                are still here — loading the current values will discard them.
-              </p>
-              <button
-                className="btn btn--small"
-                type="button"
-                onClick={() => void loadCurrentValues(editor.account.id)}
-              >
-                Load current values
-              </button>
-            </div>
+            <ConflictBanner
+              noun="account"
+              onReload={() => void loadCurrentValues(editor.account.id)}
+            />
           )}
 
           {/* Keyed on the version so React remounts the form when a reload brings a
