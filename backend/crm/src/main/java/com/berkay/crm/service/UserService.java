@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -57,26 +58,34 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse update(Long id, UserUpdateRequest userUpdateRequest) {
+    public UserResponse update(Long id, UserUpdateRequest request) {
 
         CrmUser user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
 
+        // Staleness is checked first: if the caller is looking at an old copy, the
+        // email they are "changing to" may already be what the record says. Report
+        // the stale view rather than sending them off to fix a duplicate that isn't one.
+        if (!Objects.equals(user.getVersion(), request.version())) {
+            throw new ConflictException(
+                    "This user changed since you opened it — reload and try again");
+        }
+
         // only conflict-check the email if it actually changed — otherwise a
         // no-op edit would 409 the user against their own address
-        if (!user.getEmail().equals(userUpdateRequest.email())
-                && userRepository.existsByEmail(userUpdateRequest.email()))
+        if (!user.getEmail().equals(request.email())
+                && userRepository.existsByEmail(request.email()))
             throw new ConflictException("Email is already in use");
 
-        user.setEmail(userUpdateRequest.email());
-        user.setFirstName(userUpdateRequest.firstName());
-        user.setLastName(userUpdateRequest.lastName());
-        user.setEnabled(userUpdateRequest.enabled());
+        user.setEmail(request.email());
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setEnabled(request.enabled());
 
         // replace roles by MUTATING the managed collection (clear + addAll),
         // not by swapping in a new Set — Hibernate tracks the join-table diff
         user.getRoles().clear();
-        user.getRoles().addAll(resolveRoles(userUpdateRequest.roles()));
+        user.getRoles().addAll(resolveRoles(request.roles()));
 
         return UserResponse.from(user); // managed entity → dirty-checking flushes on
     }
