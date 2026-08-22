@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class DealService {
@@ -61,6 +62,11 @@ public class DealService {
     public DealResponse update(Long id, DealUpdateRequest request, CrmUser user) {
 
         Deal deal = loadAccessible(id, user);
+
+        if (!Objects.equals(deal.getVersion(), request.version())) {
+            throw new ConflictException(
+                    "This deal changed since you opened it — reload and try again");
+        }
 
         deal.setTitle(request.title());
         deal.setValue(request.value());
