@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityForm } from './ActivityForm'
+import { ConflictBanner } from './ConflictBanner'
 import { ActivityTimeline } from './ActivityTimeline'
 import { Pagination } from './Pagination'
 import { ApiError } from '../api/client'
@@ -40,6 +41,7 @@ export function AccountActivities({ accountId, contacts }: AccountActivitiesProp
   const [editor, setEditor] = useState<Editor>({ kind: 'none' })
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
 
   const load = useCallback(
     async (page: number) => {
@@ -89,8 +91,33 @@ export function AccountActivities({ accountId, contacts }: AccountActivitiesProp
     void runMutation(() => activitiesApi.createActivity(accountId, request), 0)
   }
 
-  function handleUpdate(id: number, request: ActivityUpdateRequest) {
-    void runMutation(() => activitiesApi.updateActivity(id, request))
+  /** Not runMutation: a 409 must leave the editor open with the user's edits. */
+  async function handleUpdate(id: number, request: ActivityUpdateRequest) {
+    setSubmitting(true)
+    setFormError(null)
+    setConflict(false)
+    try {
+      await activitiesApi.updateActivity(id, request)
+      setEditor({ kind: 'none' })
+      await load(pageNumber)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflict(true)
+      } else {
+        setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function loadCurrentValues(id: number) {
+    try {
+      setEditor({ kind: 'edit', activity: await activitiesApi.fetchActivity(id) })
+      setConflict(false)
+    } catch {
+      setFormError('Could not load the current values.')
+    }
   }
 
   function handleDelete(target: Activity) {
@@ -99,10 +126,19 @@ export function AccountActivities({ accountId, contacts }: AccountActivitiesProp
     void runMutation(() => activitiesApi.deleteActivity(target.id), page)
   }
 
-  /** Completion is a full PUT — the API has no partial update. */
-  function handleToggleComplete(target: Activity) {
-    void runMutation(() =>
-      activitiesApi.updateActivity(target.id, {
+  /**
+   * Completion is a full PUT — the API has no partial update — so it carries the
+   * version of the row as it was last listed.
+   *
+   * A 409 here needs the opposite treatment to the form: there is nothing typed to
+   * protect, just a stale checkbox. Refresh the list and say so; the user can click
+   * again against the current state.
+   */
+  async function handleToggleComplete(target: Activity) {
+    setFormError(null)
+    try {
+      await activitiesApi.updateActivity(target.id, {
+        version: target.version,
         type: target.type,
         subject: target.subject,
         notes: target.notes,
@@ -110,8 +146,16 @@ export function AccountActivities({ accountId, contacts }: AccountActivitiesProp
         dueAt: target.dueAt,
         contactId: target.contactId,
         completed: !target.completed,
-      }),
-    )
+      })
+      await load(pageNumber)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setFormError('That activity changed elsewhere — the list has been refreshed.')
+        await load(pageNumber)
+      } else {
+        setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
+      }
+    }
   }
 
   return (
@@ -154,15 +198,25 @@ export function AccountActivities({ accountId, contacts }: AccountActivitiesProp
       )}
 
       {editor.kind === 'edit' && (
-        <ActivityForm
-          mode="edit"
-          activity={editor.activity}
-          contacts={contacts}
-          submitting={submitting}
-          error={formError}
-          onSubmit={(request) => handleUpdate(editor.activity.id, request)}
-          onCancel={() => setEditor({ kind: 'none' })}
-        />
+        <>
+          {conflict && (
+            <ConflictBanner
+              noun="activity"
+              onReload={() => void loadCurrentValues(editor.activity.id)}
+            />
+          )}
+
+          <ActivityForm
+            key={editor.activity.version}
+            mode="edit"
+            activity={editor.activity}
+            contacts={contacts}
+            submitting={submitting}
+            error={formError}
+            onSubmit={(request) => void handleUpdate(editor.activity.id, request)}
+            onCancel={() => { setConflict(false); setEditor({ kind: 'none' }) }}
+          />
+        </>
       )}
 
       {editor.kind === 'none' && formError && (

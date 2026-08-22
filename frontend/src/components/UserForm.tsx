@@ -46,7 +46,7 @@ export function UserForm(props: UserFormProps) {
     if (props.mode === 'create') {
       props.onSubmit({ username, email, password, firstName, lastName, roles })
     } else {
-      props.onSubmit({ email, firstName, lastName, enabled, roles })
+      props.onSubmit({ version: props.user.version, email, firstName, lastName, enabled, roles })
     }
   }
 

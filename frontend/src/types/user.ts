@@ -24,6 +24,7 @@ export interface UserCreateRequest {
 
 /** Mirrors `com.berkay.crm.dto.UserUpdateRequest` — no username, no password. */
 export interface UserUpdateRequest {
+  version: number
   email: string
   firstName: string
   lastName: string

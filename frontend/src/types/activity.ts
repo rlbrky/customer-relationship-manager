@@ -6,6 +6,7 @@ export const ACTIVITY_TYPES: ActivityType[] = ['CALL', 'EMAIL', 'MEETING', 'NOTE
 /** Mirrors `com.berkay.crm.dto.ActivityResponse`. */
 export interface Activity {
   id: number
+  version: number
   type: ActivityType
   subject: string
   notes: string | null
@@ -30,6 +31,7 @@ export interface ActivityCreateRequest {
 
 export interface ActivityUpdateRequest extends ActivityCreateRequest {
   completed: boolean
+  version: number
 }
 
 /** "MEETING" → "Meeting" */

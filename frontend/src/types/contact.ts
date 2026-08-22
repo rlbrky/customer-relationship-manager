@@ -1,6 +1,7 @@
 /** Mirrors `com.berkay.crm.dto.ContactResponse`. */
 export interface Contact {
   id: number
+  version: number
   firstName: string
   lastName: string
   email: string | null
@@ -19,5 +20,11 @@ export interface ContactCreateRequest {
   jobTitle: string | null
 }
 
-/** Mirrors `ContactUpdateRequest` — same shape; contacts don't move between accounts. */
-export type ContactUpdateRequest = ContactCreateRequest
+/**
+ * Mirrors `ContactUpdateRequest`. No longer an alias of the create shape: an update
+ * has to say which version of the record it was written against, and a create has
+ * nothing to be stale against.
+ */
+export interface ContactUpdateRequest extends ContactCreateRequest {
+  version: number
+}

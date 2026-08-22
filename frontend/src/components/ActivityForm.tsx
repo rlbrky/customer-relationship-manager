@@ -67,7 +67,11 @@ export function ActivityForm(props: ActivityFormProps) {
     if (props.mode === 'create') {
       props.onSubmit(common)
     } else {
-      props.onSubmit({ ...common, completed: props.activity.completed })
+      props.onSubmit({
+        ...common,
+        completed: props.activity.completed,
+        version: props.activity.version,
+      })
     }
   }
 

@@ -53,7 +53,7 @@ export function DealForm(props: DealFormProps) {
       props.onSubmit(accountId, { ...common, stage })
     } else {
       // no stage here on purpose — moving a deal is a transition, not an edit
-      props.onSubmit(common)
+      props.onSubmit({ ...common, version: props.deal.version })
     }
   }
 

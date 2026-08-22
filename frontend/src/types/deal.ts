@@ -9,6 +9,7 @@ export type DealOutcome = 'WON' | 'LOST'
 /** Mirrors `com.berkay.crm.dto.DealResponse`. */
 export interface Deal {
   id: number
+  version: number
   title: string
   /** Java BigDecimal → JSON number. See utils/money.ts for why that matters. */
   value: number | null
@@ -41,6 +42,7 @@ export interface DealCreateRequest {
 
 /** No stage, no outcome — those have their own endpoints, by design. */
 export interface DealUpdateRequest {
+  version: number
   title: string
   value: number | null
   expectedCloseDate: string | null

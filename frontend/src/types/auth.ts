@@ -1,6 +1,7 @@
 /** Mirrors `com.berkay.crm.dto.UserResponse` on the backend. */
 export interface User {
   id: number
+  version: number
   username: string
   email: string
   firstName: string

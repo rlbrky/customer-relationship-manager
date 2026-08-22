@@ -36,13 +36,21 @@ export function ContactForm(props: ContactFormProps) {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    props.onSubmit({
+    const common = {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: orNull(email),
       phone: orNull(phone),
       jobTitle: orNull(jobTitle),
-    })
+    }
+
+    if (props.mode === 'create') {
+      props.onSubmit(common)
+    } else {
+      // Read straight off the prop, never from state: this is the version of the
+      // snapshot the user opened, not something they are allowed to influence.
+      props.onSubmit({ ...common, version: props.contact.version })
+    }
   }
 
   return (
