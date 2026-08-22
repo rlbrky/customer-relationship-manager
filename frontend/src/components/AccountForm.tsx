@@ -51,7 +51,7 @@ export function AccountForm(props: AccountFormProps) {
       props.onSubmit({ ...common, ownerId })
     } else {
       // update requires an ownerId — fall back to the account's current owner
-      props.onSubmit({ ...common, ownerId: ownerId ?? props.account.ownerId })
+      props.onSubmit({ ...common, ownerId: ownerId ?? props.account.ownerId, version: props.account.version })
     }
   }
 
