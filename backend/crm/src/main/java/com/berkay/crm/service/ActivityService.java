@@ -3,6 +3,7 @@ package com.berkay.crm.service;
 import com.berkay.crm.dto.ActivityCreateRequest;
 import com.berkay.crm.dto.ActivityResponse;
 import com.berkay.crm.dto.ActivityUpdateRequest;
+import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.*;
 import com.berkay.crm.repository.ActivityRepository;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Service
 public class ActivityService {
@@ -57,6 +59,12 @@ public class ActivityService {
         validateTypeRules(request.type(), request.dueAt());
 
         Activity activity = loadAccessible(activityId, user);
+
+        if (!Objects.equals(activity.getVersion(), request.version())) {
+            throw new ConflictException(
+                    "This activity changed since you opened it — reload and try again");
+        }
+
         Contact contact = resolveContact(request.contactId(), activity.getAccount(), user);
 
         activity.setType(request.type());
