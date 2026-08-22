@@ -3,6 +3,7 @@ package com.berkay.crm;
 import com.berkay.crm.dto.AccountCreateRequest;
 import com.berkay.crm.dto.AccountResponse;
 import com.berkay.crm.dto.AccountUpdateRequest;
+import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.*;
 import com.berkay.crm.repository.AccountRepository;
@@ -16,8 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
@@ -26,7 +25,6 @@ import java.util.Optional;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -71,6 +69,7 @@ public class AccountServiceTest {
         account.setId(id);
         account.setName("testAccount");
         account.setOwner(owner);
+        account.setVersion(0);   // a persisted row always has one; null mismatches every request
 
         return account;
     }
@@ -120,7 +119,7 @@ public class AccountServiceTest {
 
         // when + then
         assertThatThrownBy(() -> accountService.update(99L,
-                new AccountUpdateRequest("testAccount", null, null, null, 2L), otherRep))
+                new AccountUpdateRequest(1, "testAccount", null, null, null, 2L), otherRep))
                 .isInstanceOf(AccessDeniedException.class);
     }
 
@@ -135,10 +134,48 @@ public class AccountServiceTest {
 
         // when
         AccountResponse response = accountService.update(99L,
-                new AccountUpdateRequest("testAccount Renamed", null, null, null, 1L), manager);
+                new AccountUpdateRequest(0, "testAccount Renamed", null, null, null, 1L), manager);
 
         // then
         assertThat(response.name()).isEqualTo("testAccount Renamed");
+    }
+
+    @Test
+    void update_rejectsStaleVersion() {
+
+        // given
+        CrmUser owner = userWith(1L, "ROLE_SALES_REP");
+        Account account = accountOwnedBy(99L, owner);
+        account.setVersion(5);
+
+        given(accountRepository.findById(99L)).willReturn(Optional.of(account));
+
+        // when / then
+        assertThatThrownBy(() -> accountService.update(99L,
+                        new AccountUpdateRequest(3, "testAccount renamed", null, null, null, 1L), owner))
+                        .isInstanceOf(ConflictException.class);
+
+        assertThat(account.getName())
+                .isEqualTo("testAccount");
+    }
+
+    @Test
+    void update_acceptsMatchingVersion() {
+
+        // given
+        CrmUser owner = userWith(1L, "ROLE_SALES_REP");
+        Account account = accountOwnedBy(99L, owner);
+        account.setVersion(1);
+
+        given(accountRepository.findById(99L)).willReturn(Optional.of(account));
+        given(userRepository.findById(1L)).willReturn(Optional.of(owner));
+
+        // when
+        AccountResponse response = accountService.update(99L,
+                new AccountUpdateRequest(1, "testAccount renamed", null, null, null, 1L), owner);
+
+        // then
+        assertThat(response.name()).isEqualTo("testAccount renamed");
     }
 
     @Test
