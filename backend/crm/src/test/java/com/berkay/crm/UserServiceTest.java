@@ -58,6 +58,7 @@ public class UserServiceTest {
         user.setLastName("User");
         user.setPasswordHash("hash");
         user.setEnabled(true);
+        user.setVersion(0);   // a persisted row always has one; null would fail every version check
         return user;
     }
 
@@ -140,9 +141,10 @@ public class UserServiceTest {
 
         // when - then
         assertThatThrownBy(() -> userService.update(1L, new UserUpdateRequest(
-                "new@example.com", "Jane", "Doe", true, Set.of("ROLE_SALES_REP")
+                0, "new@example.com", "Jane", "Doe", true, Set.of("ROLE_SALES_REP")
                 )
-        )).isInstanceOf(ConflictException.class);
+        )).isInstanceOf(ConflictException.class)
+          .hasMessageContaining("Email");   // not the version conflict, which throws the same type
     }
 
     @Test
@@ -156,11 +158,34 @@ public class UserServiceTest {
         given(roleRepository.findByName("ROLE_SALES_REP")).willReturn(Optional.of(salesRepRole()));
         // note: existsByEmail is NOT stubbed — email is unchanged, so the code must skip that check
 
+        // when
         userService.update(1L, new UserUpdateRequest(
-                "jdoe@example.com", "Jane", "Doe", true, Set.of("ROLE_SALES_REP")));
+                0, "jdoe@example.com", "Jane", "Doe", true, Set.of("ROLE_SALES_REP")));
 
+        // then
         assertThat(existing.getRoles()).extracting(Role::getName).containsExactly("ROLE_SALES_REP");
         assertThat(existing.getFirstName()).isEqualTo("Jane");
+    }
+
+    @Test
+    void update_rejectsStaleVersion() {
+
+        // given — the stored row has moved on since the caller read it
+        CrmUser existing = userWith("jdoe", "jdoe@example.com");
+        existing.setVersion(5);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(existing));
+        // existsByEmail is NOT stubbed: the version check has to short-circuit before it
+
+        // when / then
+        assertThatThrownBy(() -> userService.update(1L, new UserUpdateRequest(
+                3, "different@example.com", "Jane", "Doe", true, Set.of("ROLE_SALES_REP"))))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("reload");
+
+        // nothing was written
+        assertThat(existing.getFirstName()).isEqualTo("Test");
+        assertThat(existing.getEmail()).isEqualTo("jdoe@example.com");
     }
 
     @Test
