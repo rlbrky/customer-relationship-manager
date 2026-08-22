@@ -3,6 +3,7 @@ package com.berkay.crm.api;
 import com.berkay.crm.dto.*;
 import com.berkay.crm.model.ActivityType;
 import com.berkay.crm.security.CrmUserDetails;
+import com.berkay.crm.service.AccountAuditService;
 import com.berkay.crm.service.AccountService;
 import com.berkay.crm.service.ActivityService;
 import com.berkay.crm.service.ContactService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/accounts")
@@ -26,13 +28,16 @@ public class AccountController {
     private final ContactService contactService;
     private final ActivityService activityService;
     private final DealService dealService;
+    private final AccountAuditService accountAuditService;
 
     public AccountController(AccountService accountService, ContactService contactService,
-                             ActivityService activityService, DealService dealService) {
+                             ActivityService activityService, DealService dealService,
+                             AccountAuditService accountAuditService) {
         this.accountService = accountService;
         this.contactService = contactService;
         this.activityService = activityService;
         this.dealService = dealService;
+        this.accountAuditService = accountAuditService;
     }
 
     @GetMapping
@@ -60,6 +65,20 @@ public class AccountController {
     ) {
 
         return accountService.findById(id, principal.getCrmUser());
+    }
+
+    /**
+     * Deliberately /revisions and not /history: /api/deals/{id}/history already
+     * means the domain stage log. One is infrastructure nothing depends on, the
+     * other is a domain event log features are built on — different words.
+     */
+    @GetMapping("/{id}/revisions")
+    public List<RevisionResponse> getRevisions(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CrmUserDetails principal
+    ) {
+
+        return accountAuditService.revisions(id, principal.getCrmUser());
     }
 
     @PostMapping
