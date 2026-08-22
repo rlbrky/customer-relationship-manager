@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 
 public record ActivityUpdateRequest(
+        @NotNull Integer version,
         @NotNull ActivityType type, @NotBlank @Size(max = 200) String subject, String notes,
         @NotNull Instant occurredAt, LocalDateTime dueAt, Long contactId, boolean completed
 ) {

@@ -8,7 +8,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 
 public record ActivityResponse(
-        Long id, ActivityType type, String subject,
+        Long id, Integer version,
+        ActivityType type, String subject,
         String notes, Instant occurredAt, LocalDateTime dueAt,
         boolean completed, Long accountId, Long contactId,
         String contactName
@@ -18,7 +19,7 @@ public record ActivityResponse(
         Contact contact = activity.getContact();
 
         return new ActivityResponse(
-                activity.getId(), activity.getType(), activity.getSubject(),
+                activity.getId(), activity.getVersion(), activity.getType(), activity.getSubject(),
                 activity.getNotes(), activity.getOccurredAt(), activity.getDueAt(),
                 activity.isCompleted(), activity.getAccount().getId(),
                 contact == null ? null : activity.getContact().getId(),
