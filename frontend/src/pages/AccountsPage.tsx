@@ -49,6 +49,7 @@ export function AccountsPage() {
   const [editor, setEditor] = useState<Editor>({ kind: 'none' })
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
 
   // typed text (settled) → URL
   useEffect(() => {
@@ -123,8 +124,40 @@ export function AccountsPage() {
     void runMutation(() => accountsApi.createAccount(request))
   }
 
-  function handleUpdate(id: number, request: AccountUpdateRequest) {
-    void runMutation(() => accountsApi.updateAccount(id, request))
+  /**
+   * Updates do not go through runMutation, because a 409 is not an ordinary
+   * failure: the user's edits are still perfectly good, they were just written
+   * against a version someone else has since replaced. The editor stays open with
+   * everything they typed, and they choose what to do about it.
+   */
+  async function handleUpdate(id: number, request: AccountUpdateRequest) {
+    setSubmitting(true)
+    setFormError(null)
+    setConflict(false)
+    try {
+      await accountsApi.updateAccount(id, request)
+      setEditor({ kind: 'none' })
+      await load()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflict(true)
+      } else {
+        setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  /** Discards the user's edits in exchange for the server's current state. */
+  async function loadCurrentValues(id: number) {
+    try {
+      const fresh = await accountsApi.fetchAccount(id)
+      setEditor({ kind: 'edit', account: fresh })
+      setConflict(false)
+    } catch {
+      setFormError('Could not load the current values.')
+    }
   }
 
   function handleDelete(target: Account) {
@@ -155,7 +188,7 @@ export function AccountsPage() {
           <button
             className="btn btn--primary"
             type="button"
-            onClick={() => { setFormError(null); setEditor({ kind: 'create' }) }}
+            onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'create' }) }}
           >
             New account
           </button>
@@ -211,15 +244,38 @@ export function AccountsPage() {
       )}
 
       {editor.kind === 'edit' && (
-        <AccountForm
-          mode="edit"
-          account={editor.account}
-          owners={owners}
-          submitting={submitting}
-          error={formError}
-          onSubmit={(request) => handleUpdate(editor.account.id, request)}
-          onCancel={() => setEditor({ kind: 'none' })}
-        />
+        <>
+          {conflict && (
+            <div className="conflict" role="alert">
+              <p className="conflict__text">
+                Someone else changed this account while you were editing. Your changes
+                are still here — loading the current values will discard them.
+              </p>
+              <button
+                className="btn btn--small"
+                type="button"
+                onClick={() => void loadCurrentValues(editor.account.id)}
+              >
+                Load current values
+              </button>
+            </div>
+          )}
+
+          {/* Keyed on the version so React remounts the form when a reload brings a
+              new one. AccountForm seeds its fields with useState(account.name), which
+              reads its argument only on mount — without the key, swapping the account
+              prop would change nothing on screen. */}
+          <AccountForm
+            key={editor.account.version}
+            mode="edit"
+            account={editor.account}
+            owners={owners}
+            submitting={submitting}
+            error={formError}
+            onSubmit={(request) => void handleUpdate(editor.account.id, request)}
+            onCancel={() => { setConflict(false); setEditor({ kind: 'none' }) }}
+          />
+        </>
       )}
 
       {editor.kind === 'none' && formError && (
@@ -268,7 +324,7 @@ export function AccountsPage() {
                       <button
                         className="btn btn--small btn--ghost"
                         type="button"
-                        onClick={() => { setFormError(null); setEditor({ kind: 'edit', account }) }}
+                        onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'edit', account }) }}
                       >
                         Edit
                       </button>

@@ -1430,3 +1430,24 @@ textarea.field__input--area {
   font-size: 0.9375rem;
   color: var(--text-muted);
 }
+
+/* ── stale-record conflict ────────────────────────────────────────────── */
+
+.conflict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--down-bg);
+  border: 1px solid var(--down-border);
+  border-radius: 0.75rem;
+}
+
+.conflict__text {
+  margin: 0;
+  flex: 1 1 18rem;
+  font-size: 0.875rem;
+}
