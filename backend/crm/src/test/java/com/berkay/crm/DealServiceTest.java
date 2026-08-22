@@ -2,6 +2,7 @@ package com.berkay.crm;
 
 import com.berkay.crm.dto.DealCreateRequest;
 import com.berkay.crm.dto.DealResponse;
+import com.berkay.crm.dto.DealUpdateRequest;
 import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.model.*;
 import com.berkay.crm.repository.DealRepository;
@@ -236,5 +237,52 @@ class DealServiceTest {
 
         // then — @SQLDelete turns this into an UPDATE ... SET deleted_at
         verify(dealRepository).delete(deal);
+    }
+
+    // ── M11 optimistic locking ───────────────────────────────────────────────
+
+    @Test
+    void update_rejectsStaleVersion() {
+
+        // given — the stored deal has moved on since the caller read it
+        CrmUser user = userWith(1L);
+        Account account = accountWith(10L, user);
+        Deal deal = dealWith(100L, account, DealStage.PROPOSAL, null);
+        deal.setVersion(5);
+
+        given(dealRepository.findById(100L)).willReturn(Optional.of(deal));
+        given(accountService.loadAccessible(10L, user)).willReturn(account);
+
+        // when / then
+        assertThatThrownBy(() -> dealService.update(100L,
+                new DealUpdateRequest(3, "Renamed", new BigDecimal("500.00"), null), user))
+                .isInstanceOf(ConflictException.class);
+
+        // the assertion that matters: the guard ran BEFORE the setters, so nothing
+        // was written. assertThatThrownBy alone would pass with the check at the bottom.
+        assertThat(deal.getTitle()).isEqualTo("Renewal");
+        assertThat(deal.getValue()).isNull();
+    }
+
+    @Test
+    void update_acceptsMatchingVersion() {
+
+        // given
+        CrmUser user = userWith(1L);
+        Account account = accountWith(10L, user);
+        Deal deal = dealWith(100L, account, DealStage.PROPOSAL, null);
+        deal.setVersion(2);
+
+        given(dealRepository.findById(100L)).willReturn(Optional.of(deal));
+        given(accountService.loadAccessible(10L, user)).willReturn(account);
+
+        // when
+        DealResponse response = dealService.update(100L,
+                new DealUpdateRequest(2, "Renamed", new BigDecimal("500.00"),
+                        LocalDate.of(2026, 12, 1)), user);
+
+        // then
+        assertThat(response.title()).isEqualTo("Renamed");
+        assertThat(response.value()).isEqualByComparingTo(new BigDecimal("500.00"));
     }
 }

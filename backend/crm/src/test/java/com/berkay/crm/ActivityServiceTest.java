@@ -2,6 +2,8 @@ package com.berkay.crm;
 
 import com.berkay.crm.dto.ActivityCreateRequest;
 import com.berkay.crm.dto.ActivityResponse;
+import com.berkay.crm.dto.ActivityUpdateRequest;
+import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.model.*;
 import com.berkay.crm.repository.ActivityRepository;
 import com.berkay.crm.service.AccountService;
@@ -173,5 +175,63 @@ public class ActivityServiceTest {
 
         // when / then
         verify(activityRepository).delete(activity);
+    }
+
+    // ── M11 optimistic locking ───────────────────────────────────────────────
+
+    private Activity activityOn(Long id, Account account, String subject) {
+        Activity activity = new Activity();
+        activity.setId(id);
+        activity.setType(ActivityType.NOTE);
+        activity.setSubject(subject);
+        activity.setOccurredAt(Instant.now());
+        activity.setAccount(account);
+        return activity;
+    }
+
+    private ActivityUpdateRequest updateRequest(Integer version, String subject) {
+        return new ActivityUpdateRequest(version, ActivityType.NOTE, subject, null,
+                Instant.now(), null, null, false);
+    }
+
+    @Test
+    void update_rejectsStaleVersion() {
+
+        // given — the stored activity has moved on since the caller read it
+        CrmUser user = userWith(1L);
+        Account account = accountWith(10L, user);
+        Activity activity = activityOn(100L, account, "Original subject");
+        activity.setVersion(5);
+
+        given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+        given(accountService.loadAccessible(10L, user)).willReturn(account);
+
+        // when / then
+        assertThatThrownBy(() ->
+                activityService.update(100L, updateRequest(3, "Rewritten"), user))
+                .isInstanceOf(ConflictException.class);
+
+        // the guard ran before the setters — nothing was written
+        assertThat(activity.getSubject()).isEqualTo("Original subject");
+    }
+
+    @Test
+    void update_acceptsMatchingVersion() {
+
+        // given
+        CrmUser user = userWith(1L);
+        Account account = accountWith(10L, user);
+        Activity activity = activityOn(100L, account, "Original subject");
+        activity.setVersion(2);
+
+        given(activityRepository.findById(100L)).willReturn(Optional.of(activity));
+        given(accountService.loadAccessible(10L, user)).willReturn(account);
+
+        // when
+        ActivityResponse response =
+                activityService.update(100L, updateRequest(2, "Rewritten"), user);
+
+        // then
+        assertThat(response.subject()).isEqualTo("Rewritten");
     }
 }
