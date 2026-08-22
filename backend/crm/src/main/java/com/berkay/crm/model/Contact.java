@@ -1,11 +1,13 @@
 package com.berkay.crm.model;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.Instant;
 
+@Audited
 @Entity
 @Table(name = "contact")
 @SQLDelete(sql = "UPDATE contact SET deleted_at = NOW() WHERE id = ? AND version = ?")

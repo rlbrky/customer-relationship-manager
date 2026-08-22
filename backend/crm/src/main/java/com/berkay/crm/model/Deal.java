@@ -1,6 +1,7 @@
 package com.berkay.crm.model;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -8,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
+@Audited
 @Entity
 @Table(name = "deal")
 @SQLDelete(sql = "UPDATE deal SET deleted_at = NOW() WHERE id = ? AND version = ?")

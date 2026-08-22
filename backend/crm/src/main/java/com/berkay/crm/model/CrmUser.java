@@ -1,10 +1,14 @@
 package com.berkay.crm.model;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
+import org.hibernate.envers.RelationTargetAuditMode;
 
 import java.util.HashSet;
 import java.util.Set;
 
+@Audited
 @Entity
 @Table(name = "crm_user")
 public class CrmUser extends BaseEntity{
@@ -15,6 +19,7 @@ public class CrmUser extends BaseEntity{
     @Column(name = "email", nullable = false, unique = true, length = 254)
     private String email;
 
+    @NotAudited
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
@@ -89,5 +94,6 @@ public class CrmUser extends BaseEntity{
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     private Set<Role> roles = new HashSet<>();
 }

@@ -1,13 +1,16 @@
 package com.berkay.crm.model;
 
 import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.envers.NotAudited;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+@Audited
 @Entity
 @Table(name = "account")
 @SQLDelete(sql = "UPDATE account SET deleted_at = NOW() WHERE id = ? AND version = ?")
@@ -33,12 +36,15 @@ public class Account extends BaseEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @NotAudited
     @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
     private List<Contact> contacts = new ArrayList<>();
 
+    @NotAudited
     @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
     private List<Activity> activities = new ArrayList<>();
 
+    @NotAudited
     @OneToMany(mappedBy = "account", fetch = FetchType.LAZY)
     private List<Deal> deals = new ArrayList<>();
 
