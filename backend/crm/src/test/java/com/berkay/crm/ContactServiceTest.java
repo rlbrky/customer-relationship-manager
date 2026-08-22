@@ -1,8 +1,7 @@
 package com.berkay.crm;
 
-import com.berkay.crm.dto.ContactCreateRequest;
-import com.berkay.crm.dto.ContactResponse;
-import com.berkay.crm.dto.ContactUpdateRequest;
+import com.berkay.crm.dto.*;
+import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.Contact;
@@ -197,9 +196,47 @@ public class ContactServiceTest {
 
         // when + then
         assertThatThrownBy(() -> contactService.update(99L,
-                new ContactUpdateRequest("Hacked", "Name", null, null, null), anotherUser))
+                new ContactUpdateRequest(1, "Hacked", "Name", null, null, null), anotherUser))
                 .isInstanceOf(AccessDeniedException.class);
         // check that entity is never mutated
         assertThat(contact.getFirstName()).isEqualTo("test");
+    }
+
+    @Test
+    void update_rejectsStaleVersion() {
+
+        // given
+        CrmUser user = userWith(1L, "ROLE_SALES_REP");
+        Contact contact = contactWith(99L, 3L, user);
+        contact.setVersion(5);
+
+        given(contactRepository.findById(99L)).willReturn(Optional.of(contact));
+
+        // when / then
+        assertThatThrownBy(() -> contactService.update(99L,
+                new ContactUpdateRequest(3, "testContact renamed", "Name", null, null, null), user))
+                .isInstanceOf(ConflictException.class);
+
+        assertThat(contact.getFirstName())
+                .isEqualTo("test");
+    }
+
+    @Test
+    void update_acceptsMatchingVersion() {
+
+        // given
+        CrmUser user = userWith(1L, "ROLE_SALES_REP");
+        Contact contact = contactWith(99L, 3L, user);
+        contact.setVersion(1);
+
+        given(contactRepository.findById(99L)).willReturn(Optional.of(contact));
+
+        // when
+        ContactResponse response = contactService.update(99L,
+                new ContactUpdateRequest(1, "testContact", "renamed", null, null, null), user);
+
+        // then
+        assertThat(response.firstName()).isEqualTo("testContact");
+        assertThat(response.lastName()).isEqualTo("renamed");
     }
 }
