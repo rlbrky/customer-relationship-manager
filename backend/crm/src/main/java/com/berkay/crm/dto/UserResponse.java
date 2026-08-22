@@ -6,7 +6,7 @@ import com.berkay.crm.model.Role;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public record UserResponse(Long id, String username, String email, String firstName,
+public record UserResponse(Long id, Integer version, String username, String email, String firstName,
                            String lastName, boolean enabled, Set<String> roles) {
 
     public static UserResponse from(CrmUser user) {
@@ -15,7 +15,7 @@ public record UserResponse(Long id, String username, String email, String firstN
                 .collect(Collectors.toSet());
 
         return new UserResponse(
-                user.getId(), user.getUsername(), user.getEmail(),
+                user.getId(), user.getVersion(), user.getUsername(), user.getEmail(),
                 user.getFirstName(), user.getLastName(), user.isEnabled(), roleNames
         );
     }
