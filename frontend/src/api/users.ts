@@ -14,6 +14,10 @@ export async function createUser(_request: UserCreateRequest): Promise<User> {
   });
 }
 
+export async function fetchUser(id: number): Promise<User> {
+  return apiFetch<User>(`/api/users/${id}`)
+}
+
 export async function updateUser(_id: number, _request: UserUpdateRequest): Promise<User> {
   return apiFetch<User>(`/api/users/${_id}`, {
     method: 'PUT',

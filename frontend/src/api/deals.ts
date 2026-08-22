@@ -53,6 +53,10 @@ export async function createDeal(
   });
 }
 
+export async function fetchDeal(id: number): Promise<Deal> {
+  return apiFetch<Deal>(`/api/deals/${id}`)
+}
+
 export async function updateDeal(id: number, request: DealUpdateRequest): Promise<Deal> {
 
   return apiFetch<Deal>(`/api/deals/${id}`, {

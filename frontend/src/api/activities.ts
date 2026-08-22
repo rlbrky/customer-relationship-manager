@@ -36,6 +36,10 @@ export async function createActivity(
   });
 }
 
+export async function fetchActivity(id: number): Promise<Activity> {
+  return apiFetch<Activity>(`/api/activities/${id}`)
+}
+
 export async function updateActivity(
   id: number,
   request: ActivityUpdateRequest,
