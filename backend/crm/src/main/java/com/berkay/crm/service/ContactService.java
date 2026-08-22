@@ -3,6 +3,7 @@ package com.berkay.crm.service;
 import com.berkay.crm.dto.ContactCreateRequest;
 import com.berkay.crm.dto.ContactResponse;
 import com.berkay.crm.dto.ContactUpdateRequest;
+import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.Contact;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 public class ContactService {
@@ -71,6 +74,11 @@ public class ContactService {
     public ContactResponse update(Long id, ContactUpdateRequest request, CrmUser user) {
 
         Contact contact = loadAccessible(id, user);
+
+        if (!Objects.equals(contact.getVersion(), request.version())) {
+            throw new ConflictException(
+                    "This contact changed since you opened it — reload and try again");
+        }
 
         contact.setFirstName(request.firstName());
         contact.setLastName(request.lastName());
