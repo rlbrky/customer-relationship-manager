@@ -3,6 +3,7 @@ package com.berkay.crm.service;
 import com.berkay.crm.dto.AccountCreateRequest;
 import com.berkay.crm.dto.AccountResponse;
 import com.berkay.crm.dto.AccountUpdateRequest;
+import com.berkay.crm.exception.ConflictException;
 import com.berkay.crm.exception.ResourceNotFoundException;
 import com.berkay.crm.model.Account;
 import com.berkay.crm.model.CrmUser;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -61,6 +63,11 @@ public class AccountService {
     public AccountResponse update(Long id, AccountUpdateRequest request, CrmUser currentUser) {
 
         Account account = loadAccessible(id, currentUser);
+
+        if (!Objects.equals(account.getVersion(), request.version())) {
+            throw new ConflictException(
+                    "This account changed since you opened it — reload and try again");
+        }
 
         account.setName(request.name());
         account.setIndustry(request.industry());
