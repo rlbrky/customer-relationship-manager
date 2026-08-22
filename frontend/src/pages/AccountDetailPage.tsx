@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useDebounce } from '../hooks/useDebounce'
 import { ContactForm } from '../components/ContactForm'
+import { ConflictBanner } from '../components/ConflictBanner'
 import { AccountActivities } from '../components/AccountActivities'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
@@ -30,6 +31,7 @@ export function AccountDetailPage() {
   const [editor, setEditor] = useState<Editor>({ kind: 'none' })
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
 
   // Search within this account only — the backend ANDs it with inAccount(id),
   // so a match on another account's contact can never appear here.
@@ -89,8 +91,33 @@ export function AccountDetailPage() {
     void runMutation(() => contactsApi.createContact(accountId, request), 0)
   }
 
-  function handleUpdate(contactId: number, request: ContactUpdateRequest) {
-    void runMutation(() => contactsApi.updateContact(contactId, request))
+  /** Not runMutation: a 409 must leave the editor open with the user's edits. */
+  async function handleUpdate(contactId: number, request: ContactUpdateRequest) {
+    setSubmitting(true)
+    setFormError(null)
+    setConflict(false)
+    try {
+      await contactsApi.updateContact(contactId, request)
+      setEditor({ kind: 'none' })
+      await load(pageNumber)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflict(true)
+      } else {
+        setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function loadCurrentValues(contactId: number) {
+    try {
+      setEditor({ kind: 'edit', contact: await contactsApi.fetchContact(contactId) })
+      setConflict(false)
+    } catch {
+      setFormError('Could not load the current values.')
+    }
   }
 
   function handleDelete(target: Contact) {
@@ -180,14 +207,26 @@ export function AccountDetailPage() {
       )}
 
       {editor.kind === 'edit' && (
-        <ContactForm
-          mode="edit"
-          contact={editor.contact}
-          submitting={submitting}
-          error={formError}
-          onSubmit={(request) => handleUpdate(editor.contact.id, request)}
-          onCancel={() => setEditor({ kind: 'none' })}
-        />
+        <>
+          {conflict && (
+            <ConflictBanner
+              noun="contact"
+              onReload={() => void loadCurrentValues(editor.contact.id)}
+            />
+          )}
+
+          {/* Keyed on the version: ContactForm seeds its fields with useState, which
+              reads its argument only on mount, so a new prop alone changes nothing. */}
+          <ContactForm
+            key={editor.contact.version}
+            mode="edit"
+            contact={editor.contact}
+            submitting={submitting}
+            error={formError}
+            onSubmit={(request) => void handleUpdate(editor.contact.id, request)}
+            onCancel={() => { setConflict(false); setEditor({ kind: 'none' }) }}
+          />
+        </>
       )}
 
       {editor.kind === 'none' && formError && (
@@ -220,7 +259,7 @@ export function AccountDetailPage() {
                   <button
                     className="btn btn--small btn--ghost"
                     type="button"
-                    onClick={() => { setFormError(null); setEditor({ kind: 'edit', contact }) }}
+                    onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'edit', contact }) }}
                   >
                     Edit
                   </button>

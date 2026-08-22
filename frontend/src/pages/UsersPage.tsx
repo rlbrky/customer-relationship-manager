@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { UserForm } from '../components/UserForm'
+import { ConflictBanner } from '../components/ConflictBanner'
 import { ApiError } from '../api/client'
 import * as usersApi from '../api/users'
 import type { User } from '../types/auth'
@@ -21,6 +22,7 @@ export function UsersPage() {
   const [editor, setEditor] = useState<Editor>({ kind: 'none' })
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -58,8 +60,33 @@ export function UsersPage() {
     void runMutation(() => usersApi.createUser(request))
   }
 
-  function handleUpdate(id: number, request: UserUpdateRequest) {
-    void runMutation(() => usersApi.updateUser(id, request))
+  /** A 409 here means a second admin got there first — keep this one's edits. */
+  async function handleUpdate(id: number, request: UserUpdateRequest) {
+    setSubmitting(true)
+    setFormError(null)
+    setConflict(false)
+    try {
+      await usersApi.updateUser(id, request)
+      setEditor({ kind: 'none' })
+      await load()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflict(true)
+      } else {
+        setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function loadCurrentValues(id: number) {
+    try {
+      setEditor({ kind: 'edit', user: await usersApi.fetchUser(id) })
+      setConflict(false)
+    } catch {
+      setFormError('Could not load the current values.')
+    }
   }
 
   function handleDeactivate(target: User) {
@@ -94,14 +121,24 @@ export function UsersPage() {
       )}
 
       {editor.kind === 'edit' && (
-        <UserForm
-          mode="edit"
-          user={editor.user}
-          submitting={submitting}
-          error={formError}
-          onSubmit={(request) => handleUpdate(editor.user.id, request)}
-          onCancel={() => setEditor({ kind: 'none' })}
-        />
+        <>
+          {conflict && (
+            <ConflictBanner
+              noun="user"
+              onReload={() => void loadCurrentValues(editor.user.id)}
+            />
+          )}
+
+          <UserForm
+            key={editor.user.version}
+            mode="edit"
+            user={editor.user}
+            submitting={submitting}
+            error={formError}
+            onSubmit={(request) => void handleUpdate(editor.user.id, request)}
+            onCancel={() => { setConflict(false); setEditor({ kind: 'none' }) }}
+          />
+        </>
       )}
 
       {/* a mutation error while no form is open (e.g. a failed deactivate) */}
@@ -149,7 +186,7 @@ export function UsersPage() {
                       <button
                         className="btn btn--small btn--ghost"
                         type="button"
-                        onClick={() => { setFormError(null); setEditor({ kind: 'edit', user: u }) }}
+                        onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'edit', user: u }) }}
                       >
                         Edit
                       </button>

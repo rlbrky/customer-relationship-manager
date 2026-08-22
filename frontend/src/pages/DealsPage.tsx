@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { KanbanBoard } from '../components/KanbanBoard'
 import { DealForm } from '../components/DealForm'
+import { ConflictBanner } from '../components/ConflictBanner'
 import {ApiError} from '../api/client'
 import * as dealsApi from '../api/deals'
 import { fetchAccounts } from '../api/accounts'
@@ -34,6 +35,7 @@ export function DealsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [moveError, setMoveError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -119,8 +121,42 @@ export function DealsPage() {
     void runMutation(() => dealsApi.createDeal(accountId, request))
   }
 
-  function handleUpdate(id: number, request: DealUpdateRequest) {
-    void runMutation(() => dealsApi.updateDeal(id, request))
+  /**
+    * Only the edit form is version-guarded. changeStage and setOutcome stay on
+    * runMutation on purpose: a drag or a Won/Lost click is a single-field
+    * transition with nothing typed to protect, and the server already guards the
+    * one transition that matters (a closed deal cannot change stage).
+    */
+  async function handleUpdate(id: number, request: DealUpdateRequest) {
+    setSubmitting(true)
+    setFormError(null)
+    setConflict(false)
+    try {
+      await dealsApi.updateDeal(id, request)
+      setEditor({ kind: 'none' })
+      await load()
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflict(true)
+      } else {
+        setFormError(err instanceof ApiError ? err.message : 'Something went wrong.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function loadCurrentValues(id: number) {
+    try {
+      const [deal, history] = await Promise.all([
+        dealsApi.fetchDeal(id),
+        dealsApi.fetchDealHistory(id).catch(() => []),
+      ])
+      setEditor({ kind: 'edit', deal, history })
+      setConflict(false)
+    } catch {
+      setFormError('Could not load the current values.')
+    }
   }
 
   function handleSetOutcome(deal: Deal, outcome: DealOutcome | null) {
@@ -134,6 +170,7 @@ export function DealsPage() {
 
   async function openEditor(deal: Deal) {
     setFormError(null)
+    setConflict(false)
     // history is read-only context; a failure to load it shouldn't block editing
     const history = await dealsApi.fetchDealHistory(deal.id).catch(() => [])
     setEditor({ kind: 'edit', deal, history })
@@ -180,15 +217,25 @@ export function DealsPage() {
       )}
 
       {editor.kind === 'edit' && (
-        <DealForm
-          mode="edit"
-          deal={editor.deal}
-          history={editor.history}
-          submitting={submitting}
-          error={formError}
-          onSubmit={(request) => handleUpdate(editor.deal.id, request)}
-          onCancel={() => setEditor({ kind: 'none' })}
-        />
+        <>
+          {conflict && (
+            <ConflictBanner
+              noun="deal"
+              onReload={() => void loadCurrentValues(editor.deal.id)}
+            />
+          )}
+
+          <DealForm
+            key={editor.deal.version}
+            mode="edit"
+            deal={editor.deal}
+            history={editor.history}
+            submitting={submitting}
+            error={formError}
+            onSubmit={(request) => void handleUpdate(editor.deal.id, request)}
+            onCancel={() => { setConflict(false); setEditor({ kind: 'none' }) }}
+          />
+        </>
       )}
 
       {editor.kind === 'none' && formError && (
