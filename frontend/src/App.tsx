@@ -6,6 +6,7 @@ import { AccountDetailPage } from './pages/AccountDetailPage'
 import { ContactsPage } from './pages/ContactsPage'
 import { DealsPage } from './pages/DealsPage'
 import { UsersPage } from './pages/UsersPage'
+import { RecycleBinPage } from './pages/RecycleBinPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AdminRoute } from './auth/AdminRoute'
 import { AppShell } from './components/AppShell'
@@ -28,6 +29,7 @@ export default function App() {
           {/* admin-only area nests a second, role-based gate */}
           <Route element={<AdminRoute />}>
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/admin/recycle-bin" element={<RecycleBinPage />} />
           </Route>
         </Route>
       </Route>

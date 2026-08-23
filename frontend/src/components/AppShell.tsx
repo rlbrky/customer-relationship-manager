@@ -22,6 +22,9 @@ export function AppShell() {
             {/* Hiding this is UX, not security — the backend still enforces
                 ROLE_ADMIN on every /api/users call. */}
             {isAdmin && <NavLink className="nav__link" to="/users">Users</NavLink>}
+            {isAdmin && (
+              <NavLink className="nav__link" to="/admin/recycle-bin">Recycle bin</NavLink>
+            )}
           </nav>
         </div>
 
