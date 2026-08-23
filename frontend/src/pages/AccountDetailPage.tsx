@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { useDebounce } from '../hooks/useDebounce'
 import { ContactForm } from '../components/ContactForm'
 import { ConflictBanner } from '../components/ConflictBanner'
+import { RevisionTimeline } from '../components/RevisionTimeline'
+import { fetchAccountRevisions } from '../api/audit'
+import type { Revision } from '../types/audit'
 import { AccountActivities } from '../components/AccountActivities'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
@@ -32,6 +35,26 @@ export function AccountDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [conflict, setConflict] = useState(false)
+
+  // History is loaded on first expand, never on mount. Two requests already fire
+  // when this page opens, most visits never look at the history, and unlike
+  // contacts and activities the revision list grows without bound.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [revisions, setRevisions] = useState<Revision[] | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+
+  async function toggleHistory() {
+    const opening = !historyOpen
+    setHistoryOpen(opening)
+    if (!opening || revisions !== null) return
+
+    setHistoryError(null)
+    try {
+      setRevisions(await fetchAccountRevisions(accountId))
+    } catch {
+      setHistoryError('Could not load the history.')
+    }
+  }
 
   // Search within this account only — the backend ANDs it with inAccount(id),
   // so a match on another account's contact can never appear here.
@@ -292,6 +315,28 @@ export function AccountDetailPage() {
 
       {/* contacts are passed down so the "with whom" picker doesn't refetch them */}
       <AccountActivities accountId={accountId} contacts={contacts} />
+
+      <div className="content__head content__head--sub">
+        <h2 className="section__title">History</h2>
+        <button
+          className="btn btn--small btn--ghost"
+          type="button"
+          aria-expanded={historyOpen}
+          onClick={() => void toggleHistory()}
+        >
+          {historyOpen ? 'Hide history' : 'Show history'}
+        </button>
+      </div>
+
+      {historyOpen && (
+        <>
+          {historyError && <p className="form__error" role="alert">{historyError}</p>}
+          {!historyError && revisions === null && (
+            <p className="card__hint">Loading history…</p>
+          )}
+          {revisions !== null && <RevisionTimeline revisions={revisions} />}
+        </>
+      )}
     </main>
   )
 }
