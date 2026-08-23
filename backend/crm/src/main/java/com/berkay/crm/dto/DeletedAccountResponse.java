@@ -1,4 +1,8 @@
 package com.berkay.crm.dto;
 
-public record DeletedAccountResponse() {
+import java.time.Instant;
+
+public record DeletedAccountResponse(
+        Long id, String name, String industry,
+        Instant deletedAt, String ownerName, String deletedBy) {
 }
