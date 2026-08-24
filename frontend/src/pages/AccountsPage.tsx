@@ -166,6 +166,24 @@ export function AccountsPage() {
     void runMutation(() => accountsApi.deleteAccount(target.id))
   }
 
+  /**
+   * The one request in the app that does NOT go through apiFetch. A plain anchor is
+   * same-origin, so the session cookie rides along and the browser handles the save
+   * dialog — no blob, no object URL, no Content-Disposition parsing.
+   *
+   * What it costs: no error handling. If the session has expired the browser
+   * navigates to the 401 body and shows it as text instead of downloading. The
+   * fetch-to-blob alternative buys a spinner and an error path; not worth it until
+   * the export is slow enough to need one.
+   *
+   * The filters ride along so the file matches what is on screen.
+   */
+  const exportParams = new URLSearchParams()
+  setOrDelete(exportParams, 'name', nameParam)
+  setOrDelete(exportParams, 'industry', industryParam)
+  setOrDelete(exportParams, 'ownerId', ownerParam)
+  const exportHref = `/api/accounts/export.csv?${exportParams}`
+
   const filtered = Boolean(nameParam || industryParam || ownerParam)
 
   function clearFilters() {
@@ -185,15 +203,20 @@ export function AccountsPage() {
               : 'Accounts you own.'}
           </p>
         </div>
-        {editor.kind === 'none' && (
-          <button
-            className="btn btn--primary"
-            type="button"
-            onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'create' }) }}
-          >
-            New account
-          </button>
-        )}
+        <div className="head__tools">
+          <a className="btn btn--ghost" href={exportHref}>
+            Export CSV
+          </a>
+          {editor.kind === 'none' && (
+            <button
+              className="btn btn--primary"
+              type="button"
+              onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'create' }) }}
+            >
+              New account
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="filters">
