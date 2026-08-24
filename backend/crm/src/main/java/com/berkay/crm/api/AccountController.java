@@ -3,11 +3,8 @@ package com.berkay.crm.api;
 import com.berkay.crm.dto.*;
 import com.berkay.crm.model.ActivityType;
 import com.berkay.crm.security.CrmUserDetails;
-import com.berkay.crm.service.AccountAuditService;
-import com.berkay.crm.service.AccountService;
-import com.berkay.crm.service.ActivityService;
-import com.berkay.crm.service.ContactService;
-import com.berkay.crm.service.DealService;
+import com.berkay.crm.service.*;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
@@ -29,15 +27,18 @@ public class AccountController {
     private final ActivityService activityService;
     private final DealService dealService;
     private final AccountAuditService accountAuditService;
+    private final AccountExportService accountExportService;
 
     public AccountController(AccountService accountService, ContactService contactService,
                              ActivityService activityService, DealService dealService,
-                             AccountAuditService accountAuditService) {
+                             AccountAuditService accountAuditService, AccountExportService accountExportService) {
+
         this.accountService = accountService;
         this.contactService = contactService;
         this.activityService = activityService;
         this.dealService = dealService;
         this.accountAuditService = accountAuditService;
+        this.accountExportService = accountExportService;
     }
 
     @GetMapping
@@ -79,6 +80,21 @@ public class AccountController {
     ) {
 
         return accountAuditService.revisions(id, principal.getCrmUser());
+    }
+
+    @GetMapping(value = "/export.csv", produces = "text/csv")
+    public void exportAccounts(
+            HttpServletResponse response,
+            @AuthenticationPrincipal CrmUserDetails principal,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String industry,
+            @RequestParam(required = false) Long ownerId) throws IOException {
+
+        response.setContentType("text/csv");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"accounts.csv\"");
+
+        accountExportService.writeCsv(response.getWriter(), principal.getCrmUser(), name, industry, ownerId);
     }
 
     @PostMapping
