@@ -25,8 +25,18 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * No TestTransaction dance here — unlike the audit tests, nothing in the export
- * depends on a commit, so the default rollback is fine and each test is isolated.
+ * No TestTransaction dance here — nothing in the export depends on a commit, so the
+ * default rollback applies.
+ *
+ * But rollback is NOT enough on its own. AccountAuditServiceTest and
+ * RecycleBinServiceTest have to commit (Envers writes on commit), and their rows
+ * survive into every later class in the shared container. Any assertion here about
+ * the WHOLE export would be counting their leftovers too.
+ *
+ * So every fixture owner is a SALES_REP, never a MANAGER: visibleTo then scopes each
+ * export to exactly the accounts that test created. The isolation comes from the
+ * application's own visibility rule rather than from cleanup code that has to be
+ * remembered.
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -80,7 +90,7 @@ public class AccountExportServiceTest {
     @Test
     public void writeCsv_emitsAHeaderRow() throws IOException {
         // given
-        CrmUser owner = newUser("exp1", Roles.MANAGER);
+        CrmUser owner = newUser("exp1", Roles.SALES_REP);
         newAccount(owner, "Acme");
 
         // when
@@ -110,7 +120,7 @@ public class AccountExportServiceTest {
     @Test
     public void writeCsv_appliesTheNameFilter() throws IOException {
         // given
-        CrmUser owner = newUser("exp4", Roles.MANAGER);
+        CrmUser owner = newUser("exp4", Roles.SALES_REP);
         newAccount(owner, "Acme Corp");
         newAccount(owner, "Globex");
 
@@ -124,7 +134,7 @@ public class AccountExportServiceTest {
     @Test
     public void writeCsv_excludesSoftDeletedAccounts() throws IOException {
         // given
-        CrmUser owner = newUser("exp5", Roles.MANAGER);
+        CrmUser owner = newUser("exp5", Roles.SALES_REP);
         newAccount(owner, "Alive");
         Account doomed = newAccount(owner, "Deleted");
         accountRepository.delete(doomed);
@@ -140,7 +150,7 @@ public class AccountExportServiceTest {
     @Test
     public void writeCsv_roundTripsANameContainingACommaAndQuotes() throws IOException {
         // given
-        CrmUser owner = newUser("exp6", Roles.MANAGER);
+        CrmUser owner = newUser("exp6", Roles.SALES_REP);
         newAccount(owner, "Acme, \"The\" Corp");
 
         // when
@@ -153,7 +163,7 @@ public class AccountExportServiceTest {
     @Test
     public void writeCsv_neutralisesAFormulaInAnAccountName() throws IOException {
         // given — a name that would execute on open in Excel
-        CrmUser owner = newUser("exp7", Roles.MANAGER);
+        CrmUser owner = newUser("exp7", Roles.SALES_REP);
         newAccount(owner, "=cmd|'/c calc'!A0");
 
         // when
@@ -168,7 +178,7 @@ public class AccountExportServiceTest {
     public void writeCsv_pagesBeyondASingleBatch() throws IOException {
         // given — more accounts than the service's 200-row batch, so the loop has to
         // run at least twice
-        CrmUser owner = newUser("exp8", Roles.MANAGER);
+        CrmUser owner = newUser("exp8", Roles.SALES_REP);
         for (int i = 0; i < 250; i++) {
             newAccount(owner, String.format("Account %03d", i));
         }
