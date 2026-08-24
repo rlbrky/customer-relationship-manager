@@ -90,20 +90,8 @@ public class AccountService {
     public Page<AccountResponse> findAll(Pageable pageable, CrmUser currentUser,
                                          String name, String industry, Long ownerId) {
 
-        // visibility is the SEED of the chain, it can't be skipped
-        Specification<Account> spec = AccountSpecifications.visibleTo(currentUser);
-
-        if(name != null && !name.isBlank()) {
-            spec = spec.and(AccountSpecifications.nameContains(name));
-        }
-
-        if (industry != null && !industry.isBlank()) {
-            spec = spec.and(AccountSpecifications.industryIs(industry));
-        }
-
-        if (ownerId != null) {
-            spec = spec.and(AccountSpecifications.ownedBy(ownerId));
-        }
+        Specification<Account> spec =
+                AccountSpecifications.forFilters(currentUser, name, industry, ownerId);
 
         Page<Account> accounts = accountRepository.findAll(spec, pageable);
 

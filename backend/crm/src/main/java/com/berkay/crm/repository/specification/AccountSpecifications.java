@@ -49,4 +49,32 @@ public final class AccountSpecifications {
     }
 
     private AccountSpecifications() {}
+
+    /**
+     * The whole "which accounts is this person looking at" chain, in one place.
+     *
+     * Shared by the list endpoint and the CSV export: if the export built its own
+     * copy, the day someone adds a filter to the list is the day the export starts
+     * writing a different set than the screen shows.
+     */
+    public static Specification<Account> forFilters(CrmUser user, String name,
+                                                    String industry, Long ownerId) {
+
+        // visibility is the SEED of the chain, it can't be skipped
+        Specification<Account> spec = visibleTo(user);
+
+        if (name != null && !name.isBlank()) {
+            spec = spec.and(nameContains(name));
+        }
+
+        if (industry != null && !industry.isBlank()) {
+            spec = spec.and(industryIs(industry));
+        }
+
+        if (ownerId != null) {
+            spec = spec.and(ownedBy(ownerId));
+        }
+
+        return spec;
+    }
 }
