@@ -18,6 +18,13 @@
 	</properties>
 	<dependencies>
 		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<!-- Explicit version: the Boot parent does not manage commons-csv, and
+			     nothing else in the tree depends on it, so there is no skew to create. -->
+			<version>1.12.0</version>
+		</dependency>
+		<dependency>
 			<groupId>org.hibernate.orm</groupId>
 			<artifactId>hibernate-envers</artifactId>
 		</dependency>
