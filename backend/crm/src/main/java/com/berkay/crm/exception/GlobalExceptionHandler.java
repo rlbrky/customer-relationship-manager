@@ -12,6 +12,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
 
@@ -67,6 +68,16 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT,
                 "This record changed while you were saving it - reload and try again.",
                 request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorEnvelope> handleUploadTooLarge(
+            MaxUploadSizeExceededException ex, HttpServletRequest request) {
+
+        // Without this it falls through to handleGeneric and reports 500 for what is
+        // squarely a client error. Naming the limit is what makes it actionable.
+        return build(HttpStatus.PAYLOAD_TOO_LARGE,
+                "That file is larger than the 2 MB upload limit", request);
     }
 
     @ExceptionHandler(Exception.class)
