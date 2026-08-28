@@ -1503,3 +1503,52 @@ textarea.field__input--area {
 .rev__arrow {
   color: var(--text-muted);
 }
+
+/* ── csv import ───────────────────────────────────────────────────────── */
+
+.import {
+  /* wider than the edit forms: the error table needs room for a message */
+  max-width: 46rem;
+}
+
+.import .field__hint {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.import .field__hint code {
+  padding: 0.0625rem 0.25rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+}
+
+.import__result {
+  margin-top: 1.25rem;
+}
+
+.import__summary {
+  margin: 0 0 0.75rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.import__summary--good {
+  color: var(--up);
+  background: var(--up-bg);
+  border-color: var(--up-border);
+}
+
+.import__summary--bad {
+  color: var(--down);
+  background: var(--down-bg);
+  border-color: var(--down-border);
+}
+
+.import__line-head {
+  width: 4.5rem;
+}

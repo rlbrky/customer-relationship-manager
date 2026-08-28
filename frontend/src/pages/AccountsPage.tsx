@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { useDebounce } from '../hooks/useDebounce'
 import { AccountForm } from '../components/AccountForm'
+import { AccountImport } from '../components/AccountImport'
 import { ConflictBanner } from '../components/ConflictBanner'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
@@ -10,6 +11,7 @@ import * as accountsApi from '../api/accounts'
 import { fetchUsers } from '../api/users'
 import type { Account, AccountCreateRequest, AccountUpdateRequest } from '../types/account'
 import type { User } from '../types/auth'
+import type { ImportResult } from '../types/csv'
 
 type Editor = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; account: Account }
 
@@ -24,6 +26,11 @@ function setOrDelete(params: URLSearchParams, key: string, value: string) {
 export function AccountsPage() {
   const { user } = useAuth()
   const isAdmin = user?.roles.includes('ROLE_ADMIN') ?? false
+  const isManager = user?.roles.includes('ROLE_MANAGER') ?? false
+
+  // Mirrors @PreAuthorize on the endpoint. A rep who clicks it only gets a 403,
+  // so the button is not offered rather than offered and then refused.
+  const canImport = isAdmin || isManager
 
   // The URL is the source of truth for the query, so results are shareable
   // and the browser's back button moves through searches.
@@ -51,6 +58,12 @@ export function AccountsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [conflict, setConflict] = useState(false)
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importKey, setImportKey] = useState(0)
 
   // typed text (settled) → URL
   useEffect(() => {
@@ -167,6 +180,42 @@ export function AccountsPage() {
   }
 
   /**
+   * An import that reports bad rows is not a failed request — it came back 200 with
+   * the analysis, which is the thing worth showing. Only 413, 403 and an unreadable
+   * file land in the catch.
+   */
+  async function handleImport(file: File) {
+    setImporting(true)
+    setImportError(null)
+    setImportResult(null)
+    try {
+      const result = await accountsApi.importAccounts(file)
+      setImportResult(result)
+
+      if (result.imported > 0) {
+        // Clear the chosen file by remounting the panel. Nothing stops a second
+        // click on Import, account names are not unique, and a repeat upload would
+        // silently create every account again. Same keyed-remount trick as the
+        // edit form, for the same reason: useState only reads its seed on mount.
+        setImportKey((key) => key + 1)
+        await load()
+      }
+    } catch (err) {
+      setImportError(err instanceof ApiError ? err.message : 'Could not import that file.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function openImport() {
+    setImportError(null)
+    setImportResult(null)
+    setFormError(null)          // a failed create must not leave a message under this panel
+    setEditor({ kind: 'none' })   // one panel on screen at a time
+    setImportOpen(true)
+  }
+
+  /**
    * The one request in the app that does NOT go through apiFetch. A plain anchor is
    * same-origin, so the session cookie rides along and the browser handles the save
    * dialog — no blob, no object URL, no Content-Disposition parsing.
@@ -198,20 +247,26 @@ export function AccountsPage() {
         <div>
           <h1 className="content__title">Accounts</h1>
           <p className="content__lede">
-            {isAdmin || user?.roles.includes('ROLE_MANAGER')
-              ? 'All company accounts.'
-              : 'Accounts you own.'}
+            {isAdmin || isManager ? 'All company accounts.' : 'Accounts you own.'}
           </p>
         </div>
         <div className="head__tools">
           <a className="btn btn--ghost" href={exportHref}>
             Export CSV
           </a>
+          {canImport && !importOpen && (
+            <button className="btn btn--ghost" type="button" onClick={openImport}>
+              Import CSV
+            </button>
+          )}
           {editor.kind === 'none' && (
             <button
               className="btn btn--primary"
               type="button"
-              onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'create' }) }}
+              onClick={() => {
+                setFormError(null); setConflict(false); setImportOpen(false)
+                setEditor({ kind: 'create' })
+              }}
             >
               New account
             </button>
@@ -255,6 +310,17 @@ export function AccountsPage() {
           </button>
         )}
       </div>
+
+      {importOpen && (
+        <AccountImport
+          key={importKey}
+          submitting={importing}
+          error={importError}
+          result={importResult}
+          onSubmit={(file) => void handleImport(file)}
+          onCancel={() => setImportOpen(false)}
+        />
+      )}
 
       {editor.kind === 'create' && (
         <AccountForm
@@ -339,7 +405,10 @@ export function AccountsPage() {
                       <button
                         className="btn btn--small btn--ghost"
                         type="button"
-                        onClick={() => { setFormError(null); setConflict(false); setEditor({ kind: 'edit', account }) }}
+                        onClick={() => {
+                          setFormError(null); setConflict(false); setImportOpen(false)
+                          setEditor({ kind: 'edit', account })
+                        }}
                       >
                         Edit
                       </button>
