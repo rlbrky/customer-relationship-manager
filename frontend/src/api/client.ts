@@ -27,7 +27,13 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const method = (options.method ?? 'GET').toUpperCase()
   const headers = new Headers(options.headers)
 
-  if (options.body && !headers.has('Content-Type')) {
+  // FormData is the exception: the browser must set Content-Type itself, because
+  // only it knows the multipart boundary it generated — and that boundary is what
+  // marks where each part of the body starts. Setting the header by hand loses it,
+  // and the server rejects the upload before @RequestParam binds anything.
+  const isMultipart = options.body instanceof FormData
+
+  if (options.body && !isMultipart && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
