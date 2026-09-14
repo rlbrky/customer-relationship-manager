@@ -3,7 +3,9 @@ package com.berkay.crm.api;
 import com.berkay.crm.dto.ContactResponse;
 import com.berkay.crm.dto.ContactUpdateRequest;
 import com.berkay.crm.security.CrmUserDetails;
+import com.berkay.crm.service.ContactExportService;
 import com.berkay.crm.service.ContactService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,14 +14,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+
 @RestController
 @RequestMapping("/api/contacts")
 public class ContactController {
 
     private final ContactService contactService;
 
-    public ContactController(ContactService contactService) {
+    private final ContactExportService contactExportService;
+
+    public ContactController(ContactService contactService, ContactExportService contactExportService) {
+
         this.contactService = contactService;
+        this.contactExportService = contactExportService;
     }
 
     @GetMapping("{id}")
@@ -60,5 +68,19 @@ public class ContactController {
 
         contactService.delete(id, principal.getCrmUser());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping(value = "/export.csv", produces = "text/csv")
+    public void exportContacts(
+            HttpServletResponse response,
+            @AuthenticationPrincipal CrmUserDetails principal,
+            @RequestParam(required = false) String query
+    ) throws IOException {
+
+        response.setContentType("text/csv");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"contacts.csv\"");
+
+        contactExportService.writeCsv(response.getWriter(), principal.getCrmUser(), query);
     }
 }
