@@ -40,4 +40,16 @@ public final class ContactSpecifications {
         return (root, query, cb) ->
                 cb.equal(root.get("account").get("id"), accountId);
     }
+
+    public static Specification<Contact> forFilters(CrmUser user, String query) {
+
+        Specification<Contact> spec = visibleTo(user);
+
+        if (query != null && !query.isBlank()) {
+
+            spec = spec.and(matches(query));
+        }
+
+        return spec;
+    }
 }

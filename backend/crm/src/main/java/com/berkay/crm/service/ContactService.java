@@ -99,13 +99,8 @@ public class ContactService {
     @Transactional(readOnly = true)
     public Page<ContactResponse> search(String q, Pageable pageable, CrmUser user) {
 
-        Specification<Contact> spec = ContactSpecifications.visibleTo(user);
-
-        if(q != null && !q.isBlank()) {
-            spec = spec.and(ContactSpecifications.matches(q));
-        }
-
-        return contactRepository.findAll(spec, pageable).map(ContactResponse::from);
+        return contactRepository.findAll(ContactSpecifications.forFilters(user, q), pageable)
+                .map(ContactResponse::from);
     }
 
     public Contact loadAccessible(Long id, CrmUser currentUser) {
