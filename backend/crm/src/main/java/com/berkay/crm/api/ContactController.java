@@ -2,17 +2,21 @@ package com.berkay.crm.api;
 
 import com.berkay.crm.dto.ContactResponse;
 import com.berkay.crm.dto.ContactUpdateRequest;
+import com.berkay.crm.dto.ImportResult;
 import com.berkay.crm.security.CrmUserDetails;
 import com.berkay.crm.service.ContactExportService;
+import com.berkay.crm.service.ContactImportService;
 import com.berkay.crm.service.ContactService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
@@ -24,10 +28,13 @@ public class ContactController {
 
     private final ContactExportService contactExportService;
 
-    public ContactController(ContactService contactService, ContactExportService contactExportService) {
+    private final ContactImportService contactImportService;
+
+    public ContactController(ContactService contactService, ContactExportService contactExportService, ContactImportService contactImportService) {
 
         this.contactService = contactService;
         this.contactExportService = contactExportService;
+        this.contactImportService = contactImportService;
     }
 
     @GetMapping("{id}")
@@ -82,5 +89,14 @@ public class ContactController {
         response.setHeader("Content-Disposition", "attachment; filename=\"contacts.csv\"");
 
         contactExportService.writeCsv(response.getWriter(), principal.getCrmUser(), q);
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ImportResult importContacts(
+            @RequestParam("file")MultipartFile file,
+            @AuthenticationPrincipal CrmUserDetails principal
+            ) throws IOException {
+
+        return contactImportService.importCsv(file.getInputStream(), principal.getCrmUser());
     }
 }
