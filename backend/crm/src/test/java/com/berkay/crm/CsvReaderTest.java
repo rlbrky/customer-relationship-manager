@@ -1,10 +1,14 @@
 package com.berkay.crm;
 
 import com.berkay.crm.service.csv.CsvReader;
+import com.berkay.crm.service.csv.CsvWriter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,5 +121,62 @@ public class CsvReaderTest {
         // global handler, which is right for a file the user chose
         assertThatThrownBy(() -> parse("name", "\"never closed"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // ── round trip: what CsvWriter writes, CsvReader must read back unchanged ──
+
+    /** One value, written by the real CsvWriter and read back by the real CsvReader. */
+    private String roundTrip(String value) throws IOException {
+        StringWriter out = new StringWriter();
+        try (CsvWriter csv = new CsvWriter(out, "name")) {
+            csv.row(value);
+        }
+
+        CsvReader reader = CsvReader.parse(
+                new ByteArrayInputStream(out.toString().getBytes(StandardCharsets.UTF_8)));
+        return reader.rows().get(0).get("name");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "+90 212 555 0100",   // the case that started this: every international phone number
+            "=1+1", "-1", "@SUM(A1)",
+            "'=1+1",              // a real apostrophe before a formula character
+            "''",                 // nothing but escape characters
+            "'Twas Brillig Ltd",  // a real apostrophe before ordinary text
+            "O'Brien",            // an apostrophe that is not leading at all
+            "Acme Corp"})
+    public void roundTrip_returnsExactlyWhatWasWritten(String value) throws IOException {
+        // given / when / then — "'=1+1" and "''" are the two that fail if escape()
+        // does not also escape the apostrophe: without that, "=1+1" and "'=1+1" are
+        // written identically, and no reader can recover which one it was
+        assertThat(roundTrip(value)).isEqualTo(value);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"\tx", "\rx"})
+    public void roundTrip_stillTrimsAWhitespacePrefix(String value) throws IOException {
+        // given / when / then — the import has always trimmed (M12b). The apostrophe
+        // must not smuggle a leading tab past that, which is why get() unescapes first.
+        assertThat(roundTrip(value)).isEqualTo("x");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"\t", "\r", " "})
+    public void roundTrip_returnsABlankValueAsNull(String value) throws IOException {
+        // given / when / then — escape("\t") writes '\t, a blank value in disguise. It
+        // must come back null like any empty cell, not as a lone apostrophe — which
+        // would sail through @NotBlank and become somebody's first name.
+        assertThat(roundTrip(value)).isNull();
+    }
+
+    @Test
+    public void parse_keepsALeadingApostropheEscapeCouldNotHaveWritten() throws IOException {
+        // given — a hand-written file, not one of our exports. escape() never writes an
+        // apostrophe followed by ordinary text, so this one is data, not an escape.
+        CsvReader reader = parse("name", "'Twas Brillig Ltd");
+
+        // then
+        assertThat(reader.rows().get(0).get("name")).isEqualTo("'Twas Brillig Ltd");
     }
 }
