@@ -73,7 +73,10 @@ public class CsvReader {
                 .setHeader()
                 .setSkipHeaderRecord(true)
                 .setIgnoreHeaderCase(true)
-                .setTrim(true)
+                // Deliberately NO setTrim(true). The parser would trim before CsvRow.get
+                // can unescape, turning an escaped blank ('\t) into a lone apostrophe.
+                // Header names are trimmed by hand below; values are trimmed in get(),
+                // after unescaping — exactly one place, in the right order.
                 .build();
 
         try (CSVParser parser = format.parse(reader)) {
@@ -125,10 +128,19 @@ public class CsvReader {
         /**
          * Trimmed; an empty cell and an absent column both come back as null, so
          * callers never have to tell "blank" from "missing" per field.
+         *
+         * Unescaped FIRST, before the blank check and the trim. CsvWriter prefixes a
+         * leading tab or carriage return too, so '\tx is really "\tx" — trimmed while
+         * the apostrophe still shields it, the tab would survive into the database.
          */
         public String get(String column) {
             String value = values.get(column.trim().toLowerCase());
-            return value == null || value.isBlank() ? null : value.trim();
+            if (value == null) {
+                return null;
+            }
+
+            String unescaped = CsvWriter.unescape(value);
+            return unescaped.isBlank() ? null : unescaped.trim();
         }
     }
 }

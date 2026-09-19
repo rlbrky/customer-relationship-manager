@@ -32,6 +32,9 @@ public class CsvWriter implements AutoCloseable {
      */
     private static final Set<Character> FORMULA_PREFIXES = Set.of('=', '+', '-', '@', '\t', '\r');
 
+    /** Prefixed to neutralise a value, and stripped again by unescape(). */
+    private static final char ESCAPE = '\'';
+
     /** U+FEFF. Excel needs it; write it once, before anything else. */
     private static final char BOM = '﻿';
 
@@ -73,6 +76,37 @@ public class CsvWriter implements AutoCloseable {
             return text;
         }
 
-        return FORMULA_PREFIXES.contains(text.charAt(0)) ? "'" + text : text;
+        return needsEscape(text.charAt(0)) ? ESCAPE + text : text;
+    }
+
+    /**
+     * The exact inverse of escape(), used by CsvReader so an exported file imports
+     * back unchanged — "+90 212 555 0100" rather than "'+90 212 555 0100".
+     *
+     * Strips one leading apostrophe, and only where escape() would have put one.
+     * A string escape() cannot produce — "'Twas Brillig Ltd", say — is data, and
+     * comes back untouched.
+     *
+     * The two methods share needsEscape() so they cannot drift apart: change what
+     * one considers dangerous and the other follows.
+     */
+    static String unescape(String text) {
+        boolean escaped = text.length() >= 2
+                && text.charAt(0) == ESCAPE
+                && needsEscape(text.charAt(1));
+
+        return escaped ? text.substring(1) : text;
+    }
+
+    /**
+     * A formula prefix — or the escape character itself.
+     *
+     * The second half is what makes escape() reversible. Without it, "=1+1" and
+     * "'=1+1" would both be written as '=1+1: two different values, one output, and
+     * no reader could ever tell which it was looking at. It is the same reason Java
+     * needs \\ and CSV writes a quote inside quotes as "".
+     */
+    private static boolean needsEscape(char first) {
+        return FORMULA_PREFIXES.contains(first) || first == ESCAPE;
     }
 }
