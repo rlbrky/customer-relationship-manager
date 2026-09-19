@@ -63,7 +63,9 @@ public class AccountExportService {
 
             // Sorted so the file is stable between exports. An unsorted paged read has
             // no defined order across pages, so rows can repeat or vanish as data shifts.
-            Pageable page = PageRequest.of(0, BATCH_SIZE, Sort.by("name"));
+            // name alone is not enough: it has no unique constraint, and MySQL may order
+            // tied names differently in each LIMIT/OFFSET query. id makes the order total.
+            Pageable page = PageRequest.of(0, BATCH_SIZE, Sort.by("name", "id"));
 
             while (true) {
                 // this overload carries @EntityGraph("owner"), so the username column
