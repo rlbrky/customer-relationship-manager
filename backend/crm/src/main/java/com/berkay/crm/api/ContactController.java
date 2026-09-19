@@ -74,13 +74,13 @@ public class ContactController {
     public void exportContacts(
             HttpServletResponse response,
             @AuthenticationPrincipal CrmUserDetails principal,
-            @RequestParam(required = false) String query
+            @RequestParam(required = false) String q
     ) throws IOException {
 
         response.setContentType("text/csv");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Content-Disposition", "attachment; filename=\"contacts.csv\"");
 
-        contactExportService.writeCsv(response.getWriter(), principal.getCrmUser(), query);
+        contactExportService.writeCsv(response.getWriter(), principal.getCrmUser(), q);
     }
 }
