@@ -5,6 +5,7 @@ import com.berkay.crm.model.CrmUser;
 import com.berkay.crm.security.Roles;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Collection;
 import java.util.Locale;
 
 public final class AccountSpecifications {
@@ -76,5 +77,12 @@ public final class AccountSpecifications {
         }
 
         return spec;
+    }
+
+    // case-insensitive comparison for every account whose name is in the given set.
+    public static Specification<Account> nameIn(Collection<String> lowercasedNames) {
+
+        return (root, query, cb) ->
+                cb.lower(root.get("name")).in(lowercasedNames);
     }
 }
