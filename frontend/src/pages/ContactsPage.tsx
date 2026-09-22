@@ -3,8 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useDebounce } from '../hooks/useDebounce'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
-import { searchContacts } from '../api/contacts'
+import {importContacts, searchContacts} from '../api/contacts'
 import type { Contact } from '../types/contact'
+import type {ImportResult} from "../types/csv.ts";
+import {CsvImport} from "../components/CsvImport.tsx";
 
 const PAGE_SIZE = 10
 
@@ -21,6 +23,12 @@ export function ContactsPage() {
   const [totalElements, setTotalElements] = useState(0)
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importKey, setImportKey] = useState(0)
 
   useEffect(() => {
     if (debouncedQ === qParam) return
@@ -60,12 +68,52 @@ export function ContactsPage() {
     setSearchParams(next)
   }
 
+  function openImport() {
+    setImportError(null)
+    setImportResult(null) // don't show last time's result when reopening
+    setImportOpen(true)
+  }
+
+  async function handleImport(file: File) {
+    setImporting(true)
+    setImportError(null)
+    setImportResult(null)
+    try {
+      const result = await importContacts(file)
+      setImportResult(result)
+
+      if (result.imported > 0) {
+        setImportKey((key) => key + 1) // remount panel => clears chosen file
+        await load() // refresh the table so the new contents show
+      }
+    } catch (err) {
+      setImportError(err instanceof ApiError ? err.message : 'Could not import that file.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  // qParam, not qInput: the table on screen was loaded from the URL value.
+  // Anything fresher would export a different set than the user is looking at while mid-typing.
+  const exportParams = new URLSearchParams()
+  if (qParam)
+    exportParams.set('q', qParam)
+  const exportHref = `/api/contacts/export.csv?${exportParams}`
+
   return (
     <main className="content content--wide">
       <div className="content__head">
         <div>
           <h1 className="content__title">Contacts</h1>
           <p className="content__lede">Search people across every account you can see.</p>
+        </div>
+        <div className="head__tools">
+          <a className="btn btn--ghost" href={exportHref}>Export CSV</a>
+          {!importOpen && (
+              <button className="btn btn--ghost" type="button" onClick={openImport}>
+                Import CSV
+              </button>
+          )}
         </div>
       </div>
 
@@ -80,6 +128,26 @@ export function ContactsPage() {
           autoFocus
         />
       </div>
+
+      {importOpen && (
+          <CsvImport
+              key={importKey}
+              noun="contact" hint={
+            <>
+              A CSV with <code>firstName</code>, <code>lastName</code> and{' '}
+              <code>account</code> columns, plus any of <code>email</code>,{' '}
+              <code>phone</code> and <code>jobTitle</code>. <code>account</code> is the
+              exact name of an account you can see. Columns we don't recognise are
+              ignored, so a file straight from Export CSV imports as-is. Up to 2 MB.
+            </>
+          }
+              submitting={importing}
+              error={importError}
+              result={importResult}
+              onSubmit={(file) => void handleImport(file)}
+              onCancel={() => setImportOpen(false)}
+              />
+      )}
 
       {loading && <p className="card__hint">Loading contacts…</p>}
       {listError && <p className="form__error" role="alert">{listError}</p>}
