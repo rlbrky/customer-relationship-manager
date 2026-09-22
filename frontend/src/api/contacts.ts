@@ -1,6 +1,7 @@
 import type { Page } from '../types/user'
 import type { Contact, ContactCreateRequest, ContactUpdateRequest } from '../types/contact'
 import { apiFetch } from './client'
+import type { ImportResult } from "../types/csv.ts";
 
 /** Contacts on one account, optionally filtered by a search term. */
 export async function fetchContacts(
@@ -65,4 +66,11 @@ export async function updateContact(
 
 export async function deleteContact(id: number): Promise<void> {
   return apiFetch<void>(`/api/contacts/${id}`, { method: 'DELETE' })
+}
+
+export async function importContacts(file: File): Promise<ImportResult> {
+  const body = new FormData()
+  body.append('file', file)
+
+  return apiFetch<ImportResult>('/api/contacts/import', { method: 'POST', body })
 }
