@@ -1,8 +1,14 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { useId, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import type { ImportResult } from '../types/csv'
 
-interface AccountImportProps {
+interface CsvImportProps {
+  /** The record type in lower case — "account", "contact". */
+  noun: string
+  /** Override when the plural isn't just noun + "s". */
+  nounPlural?: string
+  /** Which columns this import understands. The only part that differs per page. */
+  hint: ReactNode
   submitting: boolean
   /** A failed REQUEST — 413, 403, or a file that is not parseable CSV at all. */
   error: string | null
@@ -18,11 +24,21 @@ interface AccountImportProps {
  */
 const MAX_SHOWN = 50
 
-export function AccountImport({
-  submitting, error, result, onSubmit, onCancel,
-}: AccountImportProps) {
+/**
+ * Upload a CSV and show what the backend made of it. Every import endpoint returns
+ * the same ImportResult shape, so everything except the column hint is shared.
+ */
+export function CsvImport({
+  noun, nounPlural, hint, submitting, error, result, onSubmit, onCancel,
+}: CsvImportProps) {
 
   const [file, setFile] = useState<File | null>(null)
+
+  // Not a fixed "import-file": two panels on one page would share an id and the
+  // second label would focus the first input.
+  const inputId = useId()
+
+  const plural = nounPlural ?? `${noun}s`
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -34,21 +50,15 @@ export function AccountImport({
 
   return (
     <section className="panel import">
-      <h2 className="panel__title">Import accounts</h2>
-      <p className="field__hint">
-        A CSV with a <code>name</code> column, plus any of <code>industry</code>,{' '}
-        <code>website</code>, <code>phone</code> and <code>owner</code>. Owner is a
-        username; leave it out and the accounts come to you. Columns we don't
-        recognise are ignored, so a file straight from Export CSV imports as-is.
-        Up to 2 MB.
-      </p>
+      <h2 className="panel__title">Import {plural}</h2>
+      <p className="field__hint">{hint}</p>
 
       <form className="form" onSubmit={handleSubmit}>
         <div className="field">
-          <label className="field__label" htmlFor="import-file">CSV file</label>
+          <label className="field__label" htmlFor={inputId}>CSV file</label>
           <input
             className="field__input"
-            id="import-file"
+            id={inputId}
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -114,8 +124,7 @@ export function AccountImport({
             </p>
           ) : (
             <p className="import__summary import__summary--good">
-              Imported {result.imported}{' '}
-              {result.imported === 1 ? 'account' : 'accounts'}.
+              Imported {result.imported} {result.imported === 1 ? noun : plural}.
             </p>
           )}
         </div>

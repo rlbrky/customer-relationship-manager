@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { useDebounce } from '../hooks/useDebounce'
 import { AccountForm } from '../components/AccountForm'
-import { AccountImport } from '../components/AccountImport'
+import { CsvImport } from '../components/CsvImport'
 import { ConflictBanner } from '../components/ConflictBanner'
 import { Pagination } from '../components/Pagination'
 import { ApiError } from '../api/client'
@@ -312,8 +312,18 @@ export function AccountsPage() {
       </div>
 
       {importOpen && (
-        <AccountImport
+        <CsvImport
           key={importKey}
+          noun="account"
+          hint={
+            <>
+              A CSV with a <code>name</code> column, plus any of <code>industry</code>,{' '}
+              <code>website</code>, <code>phone</code> and <code>owner</code>. Owner is a
+              username; leave it out and the accounts come to you. Columns we don't
+              recognise are ignored, so a file straight from Export CSV imports as-is.
+              Up to 2 MB.
+            </>
+          }
           submitting={importing}
           error={importError}
           result={importResult}
