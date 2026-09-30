@@ -1,17 +1,17 @@
 package com.berkay.crm.api;
 
-import com.berkay.crm.dto.ContactResponse;
-import com.berkay.crm.dto.ContactUpdateRequest;
-import com.berkay.crm.dto.ImportResult;
+import com.berkay.crm.dto.*;
 import com.berkay.crm.security.CrmUserDetails;
 import com.berkay.crm.service.ContactExportService;
 import com.berkay.crm.service.ContactImportService;
 import com.berkay.crm.service.ContactService;
+import com.berkay.crm.service.EmailService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,11 +30,17 @@ public class ContactController {
 
     private final ContactImportService contactImportService;
 
-    public ContactController(ContactService contactService, ContactExportService contactExportService, ContactImportService contactImportService) {
+    private final EmailService emailService;
+
+    public ContactController(ContactService contactService,
+                             ContactExportService contactExportService,
+                             ContactImportService contactImportService,
+                             EmailService emailService) {
 
         this.contactService = contactService;
         this.contactExportService = contactExportService;
         this.contactImportService = contactImportService;
+        this.emailService = emailService;
     }
 
     @GetMapping("{id}")
@@ -98,5 +104,17 @@ public class ContactController {
             ) throws IOException {
 
         return contactImportService.importCsv(file.getInputStream(), principal.getCrmUser());
+    }
+
+    @PostMapping("{id}/emails")
+    public ResponseEntity<EmailMessageResponse> sendEmail(
+            @PathVariable Long id,
+            @Valid @RequestBody SendEmailRequest request,
+            @AuthenticationPrincipal CrmUserDetails principal
+            ) {
+
+        EmailMessageResponse response = emailService.send(id, request, principal.getCrmUser());
+        // 201 with no location header; there is no GET for a single email and a location that 404s is worse.
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
