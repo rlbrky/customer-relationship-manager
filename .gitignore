@@ -10,6 +10,10 @@ IMPLEMENTATION_PLAN.md
 
 # ─── IDEs ───
 .idea/
+# IntelliJ "Store as project file" run configurations. They hold environment
+# variables in plain text — CRM_DB_PASSWORD, CRM_MAIL_API_KEY — so one ticked box
+# plus a `git add .` would publish them.
+.run/
 *.iml
 *.iws
 *.ipr
