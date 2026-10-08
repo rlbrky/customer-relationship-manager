@@ -1552,3 +1552,91 @@ textarea.field__input--area {
 .import__line-head {
   width: 4.5rem;
 }
+
+/* ── email composer ───────────────────────────────────────────────────── */
+
+.composer {
+  /* the same width as the import panel: a body needs more room than a form row */
+  max-width: 46rem;
+}
+
+.composer__to {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.composer__label {
+  display: inline-block;
+  min-width: 2rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.composer__body-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.composer__count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.composer__count--near {
+  color: var(--down);
+}
+
+/* taller than field__input--area's 4.5rem: this is a letter, not a note */
+.composer__body {
+  min-height: 10rem;
+  line-height: 1.5;
+}
+
+.composer__failure {
+  padding: 0.75rem 1rem;
+  background: var(--down-bg);
+  border: 1px solid var(--down-border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.composer__failure p {
+  margin: 0;
+}
+
+.composer__failure p + p {
+  margin-top: 0.375rem;
+}
+
+.composer__failure-title {
+  font-weight: 600;
+  color: var(--down);
+}
+
+.composer__failure-detail {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8125rem;
+  /* provider errors arrive as JSON with no spaces to break on */
+  overflow-wrap: anywhere;
+}
+
+/* ── page notice ──────────────────────────────────────────────────────── */
+
+.notice {
+  margin: 0 0 1rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.notice--good {
+  color: var(--up);
+  background: var(--up-bg);
+  border-color: var(--up-border);
+}
