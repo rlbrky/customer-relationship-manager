@@ -2,6 +2,7 @@ import type { Page } from '../types/user'
 import type { Contact, ContactCreateRequest, ContactUpdateRequest } from '../types/contact'
 import { apiFetch } from './client'
 import type { ImportResult } from "../types/csv.ts";
+import type {EmailMessage, SendEmailRequest} from "../types/email.ts";
 
 /** Contacts on one account, optionally filtered by a search term. */
 export async function fetchContacts(
@@ -73,4 +74,11 @@ export async function importContacts(file: File): Promise<ImportResult> {
   body.append('file', file)
 
   return apiFetch<ImportResult>('/api/contacts/import', { method: 'POST', body })
+}
+
+export async function sendEmail(contactId: number, request: SendEmailRequest): Promise<EmailMessage> {
+  return apiFetch<EmailMessage>(`/api/contacts/${contactId}/emails`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
 }
