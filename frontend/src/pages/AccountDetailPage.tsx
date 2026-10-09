@@ -13,6 +13,8 @@ import { fetchAccount } from '../api/accounts'
 import * as contactsApi from '../api/contacts'
 import type { Account } from '../types/account'
 import type { Contact, ContactCreateRequest, ContactUpdateRequest } from '../types/contact'
+import {useEmailComposer} from "../hooks/useEmailComposer.ts";
+import {EmailComposer} from "../components/EmailComposer.tsx";
 
 type Editor = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; contact: Contact }
 
@@ -42,6 +44,9 @@ export function AccountDetailPage() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [revisions, setRevisions] = useState<Revision[] | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
+
+  const [timelineKey, setTimelineKey] = useState(0)
+  const composer = useEmailComposer({ onSent: () => setTimelineKey((key) => key + 1)})
 
   async function toggleHistory() {
     const opening = !historyOpen
@@ -149,6 +154,14 @@ export function AccountDetailPage() {
     void runMutation(() => contactsApi.deleteContact(target.id), page)
   }
 
+  function openComposer(contact: Contact) {
+
+    setEditor({ kind: 'none' })
+    setFormError(null)
+    setConflict(false)
+    composer.open(contact)
+  }
+
   if (loading && !account) {
     return <main className="content content--wide"><p className="card__hint">Loading…</p></main>
   }
@@ -218,6 +231,21 @@ export function AccountDetailPage() {
           )}
         </div>
       </div>
+
+      {composer.notice && <p className="notice notice--good" role="status">{composer.notice}</p> }
+
+      {composer.contact && (
+          <EmailComposer
+              key={composer.contact.id}
+              recipientName={`${composer.contact.firstName} ${composer.contact.lastName}`}
+              recipientEmail={composer.contact.email ?? ''}
+              sending={composer.sending}
+              error={composer.error}
+              failure={composer.failure}
+              onSend={(request) => void composer.send(request)}
+              onCancel={composer.close}
+          />
+      )}
 
       {editor.kind === 'create' && (
         <ContactForm
@@ -314,7 +342,7 @@ export function AccountDetailPage() {
       />
 
       {/* contacts are passed down so the "with whom" picker doesn't refetch them */}
-      <AccountActivities accountId={accountId} contacts={contacts} />
+      <AccountActivities key={timelineKey} accountId={accountId} contacts={contacts} />
 
       <div className="content__head content__head--sub">
         <h2 className="section__title">History</h2>
