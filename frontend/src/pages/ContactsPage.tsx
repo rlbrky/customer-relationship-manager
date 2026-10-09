@@ -7,6 +7,8 @@ import {importContacts, searchContacts} from '../api/contacts'
 import type { Contact } from '../types/contact'
 import type {ImportResult} from "../types/csv.ts";
 import {CsvImport} from "../components/CsvImport.tsx";
+import {useEmailComposer} from "../hooks/useEmailComposer.ts";
+import {EmailComposer} from "../components/EmailComposer.tsx";
 
 const PAGE_SIZE = 10
 
@@ -29,6 +31,8 @@ export function ContactsPage() {
   const [importError, setImportError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importKey, setImportKey] = useState(0)
+
+  const composer = useEmailComposer();
 
   useEffect(() => {
     if (debouncedQ === qParam) return
@@ -69,6 +73,8 @@ export function ContactsPage() {
   }
 
   function openImport() {
+
+    composer.close();
     setImportError(null)
     setImportResult(null) // don't show last time's result when reopening
     setImportOpen(true)
@@ -91,6 +97,12 @@ export function ContactsPage() {
     } finally {
       setImporting(false)
     }
+  }
+
+  function openComposer(contact: Contact) {
+
+    setImportOpen(false);
+    composer.open(contact);
   }
 
   // qParam, not qInput: the table on screen was loaded from the URL value.
@@ -129,6 +141,21 @@ export function ContactsPage() {
         />
       </div>
 
+      { composer.notice && <p className="notice notice--good" role="status">{composer.notice}</p> }
+
+      { composer.contact && (
+          <EmailComposer
+              key={composer.contact.id}
+              recipientName={`${composer.contact.firstName} ${composer.contact.lastName}`}
+              recipientEmail={composer.contact.email ?? ''}
+              sending={composer.sending}
+              error={composer.error}
+              failure={composer.failure}
+              onSend={(request) => void composer.send(request)}
+              onCancel={composer.close}
+          />
+      )}
+
       {importOpen && (
           <CsvImport
               key={importKey}
@@ -163,6 +190,7 @@ export function ContactsPage() {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Account</th>
+                  <th className="table__actions-head">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,6 +209,22 @@ export function ContactsPage() {
                         {contact.accountName}
                       </Link>
                     </td>
+                    <td className="table__muted">
+                      {contact.email ?? '-'}
+                    </td>
+                    <td className="table__actions">
+                      {contact.email && (
+                          <button
+                              className="btn btn--small btn--ghost"
+                              type="button"
+                              disabled={composer.sending}
+                              onClick={() => openComposer(contact)}
+                          >
+                            Email
+                          </button>
+                      )}
+                    </td>
+                    <td className="table__empty" colSpan={6} />
                   </tr>
                 ))}
                 {contacts.length === 0 && (
